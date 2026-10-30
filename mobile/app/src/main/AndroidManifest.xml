@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- This prototype is deliberately offline: no INTERNET or location permission. -->
+    <!-- No location permission: network mode uses explicit vehicle/object selections. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:label="Парковка · Демо"
         android:icon="@drawable/ic_parking" android:theme="@style/AppTheme"
         android:supportsRtl="true" android:usesCleartextTraffic="false">

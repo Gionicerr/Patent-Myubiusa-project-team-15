@@ -21,6 +21,7 @@ import java.io.File
 class ParkingUiTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     @Before fun reset() {
+        compose.onNodeWithText("Автономное демо").performClick()
         compose.runOnIdle { ViewModelProvider(compose.activity)[ParkingViewModel::class.java].reset() }
     }
     // PixelCopy redraw callbacks are not driven by Robolectric. Use its native Canvas renderer.
