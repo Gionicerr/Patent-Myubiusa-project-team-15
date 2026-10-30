@@ -68,14 +68,14 @@ class ParkingHttpApiTest {
             val row = api.mutate("unit-only", action).get(5, TimeUnit.SECONDS)
             assertEquals(bodies[0], bodies[1]); assertEquals("2035-01-01T12:00:00.123456+00:00", row.endAt)
             val json = JSONObject(action.body)
-            assertEquals(setOf("objectId", "endAt", "idempotencyKey"), json.keySet())
+            assertEquals(setOf("objectId", "endAt", "idempotencyKey"), json.keys().asSequence().toSet())
             assertEquals("2035-01-01T12:00:00Z", json.getString("endAt"))
             assertNotEquals(json.getString("idempotencyKey"), JSONObject(SessionAction.create(vehicle, obj, end, now).body).getString("idempotencyKey"))
         }
     }
     @Test fun `confirmation takes expected revision from the loaded server record`() {
         val action = SessionAction.confirm(sessionDto(7), end, now); val json = JSONObject(action.body)
-        assertEquals(setOf("endAt", "expectedRevision", "idempotencyKey"), json.keySet())
+        assertEquals(setOf("endAt", "expectedRevision", "idempotencyKey"), json.keys().asSequence().toSet())
         assertEquals(7L, json.getLong("expectedRevision")); assertEquals("/api/sessions/$session/confirm", action.path)
         val next = JSONObject(SessionAction.confirm(sessionDto(8), end, now).body)
         assertEquals(8L, next.getLong("expectedRevision")); assertNotEquals(json.getString("idempotencyKey"), next.getString("idempotencyKey"))

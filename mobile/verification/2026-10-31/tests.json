@@ -1,0 +1,59 @@
+{
+  "checked_at": "2026-10-31T01:16:46+03:00",
+  "source_base_commit": "7e3e0dfaeeab2425916486627f247aa3467704ef",
+  "scope": "mobile only; test compilation fix in ParkingHttpApiTest",
+  "task": ":app:testDebugUnitTest",
+  "exit_code": 0,
+  "tests": 40,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "new_network_tests": 11,
+  "suites": [
+    {
+      "suite": "ru.russtech.parking.data.SnapshotTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "ru.russtech.parking.domain.ParkingTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "ru.russtech.parking.domain.RepositoryTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "ru.russtech.parking.network.ParkingHttpApiTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "ru.russtech.parking.ui.NetworkParkingViewModelTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "suite": "ru.russtech.parking.ui.ParkingUiTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "device_test": false,
+  "android_to_api_to_angular": "not executed; no connected device or installed emulator",
+  "local_log": ".tooling/validation-20261031/tests.log"
+}

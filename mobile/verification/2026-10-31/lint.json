@@ -1,0 +1,33 @@
+{
+  "checked_at": "2026-10-31T01:16:46+03:00",
+  "source_base_commit": "7e3e0dfaeeab2425916486627f247aa3467704ef",
+  "scope": "mobile only; test compilation fix in ParkingHttpApiTest",
+  "task": ":app:lintDebug",
+  "exit_code": 0,
+  "errors": 0,
+  "warnings": 3,
+  "issues": [
+    {
+      "id": "NewerVersionAvailable",
+      "severity": "Warning",
+      "message": "A newer version of org.json:json than 20250517 is available: 20260814",
+      "file": "app/build.gradle.kts",
+      "line": 34
+    },
+    {
+      "id": "NewerVersionAvailable",
+      "severity": "Warning",
+      "message": "A newer version of org.robolectric:robolectric than 4.16.1 is available: 4.17",
+      "file": "app/build.gradle.kts",
+      "line": 35
+    },
+    {
+      "id": "UseKtx",
+      "severity": "Warning",
+      "message": "Use the KTX extension function `SharedPreferences.edit` instead?",
+      "file": "app/src/main/java/ru/russtech/parking/data/LocalStateStore.kt",
+      "line": 12
+    }
+  ],
+  "local_log": ".tooling/validation-20261031/lint.log"
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "tool": "JDK 17",
+    "algorithm": "sha256",
+    "expected": "8b9b611d917e3dfd8419d3566b5949226f69b052fed7e109c1368add1dfe8711",
+    "actual": "8b9b611d917e3dfd8419d3566b5949226f69b052fed7e109c1368add1dfe8711",
+    "verified": true
+  },
+  {
+    "tool": "Gradle 8.13",
+    "algorithm": "sha256",
+    "expected": "20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78",
+    "actual": "20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78",
+    "verified": true
+  },
+  {
+    "tool": "Command-line Tools 19",
+    "algorithm": "sha1",
+    "expected": "5fdcc763663eefb86a5b8879697aa6088b041e70",
+    "actual": "5fdcc763663eefb86a5b8879697aa6088b041e70",
+    "verified": true
+  }
+]
