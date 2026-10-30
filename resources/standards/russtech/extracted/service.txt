@@ -1,0 +1,551 @@
+=== PAGE 1 ===
+Шаблон описания сервисов
+Описание
+Ссылки
+Требования к ресурсам
+Отказоустойчивость
+Предельные ограничения работы сервиса
+Работа сервиса
+Авторизация
+Описание окружений
+Prod окружение
+Stage окружение
+Test окружение
+Сборка
+Деплой
+Конфигурация
+Переменные окружения для CI/CD
+Мониторинг
+Мониторинг OS Linux
+Items
+Triggers
+Мониторинг Docker сервиса
+Items
+Triggers
+Мониторинг Application
+Логирование
+Сетевая связность
+Доступы к сервису
+Описание
+данный раздел заполняет Разработчик
+Текстовое описание + должна быть таблица с описанием технологии(й) разработки
+Название Описание
+Тип приложения Пример: ASP.NET Core REST API
+Прикладное ПО / Frameworks Пример: .NET 7.0
+Системное ПО Пример: Linux
+Swagger ссылка если применимо
+Архитектура Пример: микросервисная или сервисная или иное
+Ссылки
+данный раздел заполняет Разработчик
+Production Stage Test
+Сервис Например
+Логи Например
+
+=== PAGE 2 ===
+Требования к ресурсам
+данный раздел заполняет Разработчик
+Пример: сервис запускается в контейнере, для своей работы требует 10mb оперативной памяти и 2 ядра CPU и столько-то мегабайт дискового пространства
+Отказоустойчивость
+данный раздел заполняет Разработчик совместно с Руководителем проекта
+Пример:
+- сервис работает в рабочее время 5/8 в одном экземпляре. Это значит, что администраторы, если "упадет" сервер, не гарантируют поддержку в нерабочее
+время;
+- сервис работает в рабочее время 5/8, но в нескольких экземплярах (горизонтальное масштабирование);
+- сервис работает непрерывно 24/7, как минимум в трех экземплярах на серверах, расположенных в разных ЦОД (центр обработки данных).
+Предельные ограничения работы сервиса
+данный раздел заполняет Руководитель проекта и Разработчик
+Необходимо указать, с какими предельными значениями тестировался сервис.
+Пример:
+количество запросов в секунду, который обработает сервис;
+количество информации в единицу времени, которое мы готовы принимать (например, файлы с роликами);
+количество одновременно приходящих пользователей.
+Исходя из этих параметров будут установлены ограничения на продуктивных серверах или непосредственно в коде сервисов или приложений.
+Например, в коде сервиса Admetrix установили ограничения на количество запросов в день.
+Работа сервиса
+данный раздел заполняет Разработчик
+Пример: сервис принимает на вход запросы по rest api или по протоколу grpc или иное минимальное описание его работы в 2-х,3-х предложениях
+Авторизация
+данный раздел заполняет Разработчик если авторизация поддерживается.
+Пример:
+Сервис использует авторизацию по jwt-токену. То есть при обращении к сервису запрос должен содержать заголовок:
+Authorization: Bearer <token> и ....
+Описание окружений
+данный раздел заполняют Разработчик совместно с DevOps инженерами и сетевыми администраторами
+Prod окружение
+Можно описать в виде таблицы, добавить текстовое описание или отобразить на схеме
+Пример: в виде текстового описания
+
+=== PAGE 3 ===
+От сервиса:
+< > () (HTTP 80 )
+К сервису:
+Stage окружение
+Можно описать в виде таблицы, добавить текстовое описание или отобразить на схеме. Если нет – написать "Отсутствует".
+Test окружение
+Можно описать в виде таблицы, добавить текстовое описание или отобразить на схеме. Если нет – написать "Отсутствует".
+Сборка
+данный раздел заполняют Разработчик совместно с DevOps инженерами
+Пример:
+.gitlab-ci.yml
+Переменная ASPNETCORE_CERT_PASS передается в докер файл и содержит пароль, необходимый для генерации само-подписанного сертификата.
+Запускаемый сервис через конфигурацию получает путь до файла сертификата в системе и пароль из переменной ASPNETCORE_CERT_PASS.
+Деплой
+данный раздел заполняет DevOps инженер
+Пример:
+Сервис собирается в docker через GitLab и выкладывается на виртуальную машину
+build (сборка приложение в контейнер)
+container_scanning (проверка с помощью Trivy), если найдена уязвимость уровня HIGH или выше, то deploy не пройдет. В отчете pipe line будет
+указана проблема
+deploy после удачных шагов, gitlab-runner принесет собранный docker контейнер на VM и запустит его
+Конфигурация
+данный раздел заполняет Разработчик
+Пример: Настройка происходит через переменные окружения и через файлы с конфигурацией. Файл конфигурации по-умолчанию - appsettings.json, остальные
+файлы конфигурации существуют для каждого окружения в отдельности и переопределяют настройки, заданные в файле по-умолчанию. Настройки в
+переменных окружения имеют приоритет над настройками в файлах конфигурации.
+Переменные окружения для CI/CD
+Имя переменной Prod Stage Test Описание
+ПРИМЕР: Connection string Строка соединения с базой данных
+var2
+varN
+
+=== PAGE 4 ===
+Мониторинг
+данный раздел заполняет Разработчик совместно с Руководителем проекта
+Нужно описать механизм мониторинга через вызов из Prometheus (https://prometheus.io/docs/introduction/overview/)
+Технический мониторинг: падение сервера и/или сервиса, отсутствие связи, потребление памяти, CPU и т.д.
+Мониторинг ОС VM осуществляется через zabbix-agent2
+Мониторинг OS Linux
+Items
+Name Description Type Key and additional info
+Linux: Version of Zabbix Zabbix agent.version
+agent running agent Preprocessing
+Discard unchanged with heartbeat: 1d
+Linux: Host name of Zabbix Zabbix agent.hostname
+agent running agent Preprocessing
+Discard unchanged with heartbeat: 1d
+Linux: Zabbix agent ping The agent always returns 1 for this item. It could be used in combination with nodata() Zabbix agent.ping
+for availability check. agent
+Linux: Zabbix agent Monitoring the availability status of the agent. Zabbix zabbix[host,agent,available]
+availability internal
+Linux: Number of CPUs Zabbix system.cpu.num
+agent Preprocessing
+Discard unchanged with heartbeat: 1d
+Linux: Load average (1m Zabbix system.cpu.load[all,avg1]
+avg) agent
+Linux: Load average (5m Zabbix system.cpu.load[all,avg5]
+avg) agent
+Linux: Load average (15m Zabbix system.cpu.load[all,avg15]
+avg) agent
+Linux: CPU utilization The CPU utilization expressed in %. Depend system.cpu.util
+ent item Preprocessing
+JavaScript: //Calculate
+utilization<br>return (100 -
+value)
+Linux: CPU idle time The time the CPU has spent doing nothing. Zabbix system.cpu.util[,idle]
+agent
+Linux: CPU system time The time the CPU has spent running the kernel and its processes. Zabbix system.cpu.util[,system]
+agent
+Linux: CPU user time The time the CPU has spent running users' processes that are not niced. Zabbix system.cpu.util[,user]
+agent
+Linux: CPU nice time The time the CPU has spent running users' processes that have been niced. Zabbix system.cpu.util[,nice]
+agent
+
+=== PAGE 5 ===
+Linux: CPU iowait time The amount of time the CPU has been waiting for I/O to complete. Zabbix system.cpu.util[,iowait]
+agent
+Linux: CPU steal time The amount of "stolen" CPU from this virtual machine by the hypervisor for other tasks, Zabbix system.cpu.util[,steal]
+such as running another virtual machine. agent
+Linux: CPU interrupt time The amount of time the CPU has been servicing hardware interrupts. Zabbix system.cpu.util[,interrupt]
+agent
+Linux: CPU softirq time The amount of time the CPU has been servicing software interrupts. Zabbix system.cpu.util[,softirq]
+agent
+Linux: CPU guest time Guest time - the time spent on running a virtual CPU for a guest operating system. Zabbix system.cpu.util[,guest]
+agent
+Linux: CPU guest nice time The time spent on running a niced guest (a virtual CPU for guest operating systems Zabbix system.cpu.util[,guest_nice]
+under the control of the Linux kernel). agent
+Linux: Context switches per Zabbix system.cpu.switches
+second agent Preprocessing
+Change per second
+Linux: Interrupts per second Zabbix system.cpu.intr
+agent Preprocessing
+Change per second
+Linux: Get filesystems The vfs.fs.get key acquires raw information set about the file systems. Later to be Zabbix vfs.fs.get
+extracted by preprocessing in dependent items. agent
+Linux: Memory utilization The percentage of used memory is calculated as 100-pavailable. Depend vm.memory.utilization
+ent item Preprocessing
+JavaScript: return (100-value);
+Linux: Available memory in The available memory as percentage of the total. See also Appendixes in Zabbix Zabbix vm.memory.size[pavailable]
+% Documentation about parameters of the vm.memory.size item. agent
+Linux: Total memory The total memory expressed in bytes. Zabbix vm.memory.size[total]
+agent
+Linux: Available memory The available memory: Zabbix vm.memory.size[available]
+agent
+- in Linux - available = free + buffers + cache;
+- on other platforms calculation may vary.
+See also Appendixes in Zabbix Documentation about parameters of the vm.memory.
+size item.
+Linux: Total swap space The total space of the swap volume/file expressed in bytes. Zabbix system.swap.size[,total]
+agent
+Linux: Free swap space The free space of the swap volume/file expressed in bytes. Zabbix system.swap.size[,free]
+agent
+Linux: Free swap space in % The free space of the swap volume/file expressed in %. Zabbix system.swap.size[,pfree]
+agent
+Linux: System uptime The system uptime expressed in the following format: "N days, hh:mm:ss". Zabbix system.uptime
+agent
+Linux: System boot time Zabbix system.boottime
+agent Preprocessing
+Discard unchanged with heartbeat: 1h
+Linux: System local time The local system time of the host. Zabbix system.localtime
+agent
+Linux: System name The host name of the system. Zabbix system.hostname
+agent Preprocessing
+Discard unchanged with heartbeat: 12h
+
+=== PAGE 6 ===
+Linux: System description The information as normally returned by uname -a. Zabbix system.uname
+agent Preprocessing
+Discard unchanged with heartbeat: 12h
+Linux: Number of logged in The number of users who are currently logged in. Zabbix system.users.num
+users agent
+Linux: Maximum number of It could be increased by using sysctl utility or modifying the file /etc/sysctl. Zabbix kernel.maxfiles
+open file descriptors conf. agent Preprocessing
+Discard unchanged with heartbeat: 1d
+Linux: Maximum number of It could be increased by using sysctl utility or modifying the file /etc/sysctl. Zabbix kernel.maxproc
+processes conf. agent Preprocessing
+Discard unchanged with heartbeat: 1d
+Linux: Number of processes Zabbix proc.num
+agent
+Linux: Number of running Zabbix proc.num[,,run]
+processes agent
+Linux: Checksum of /etc Zabbix vfs.file.cksum[/etc/passwd,sha256]
+/passwd agent Preprocessing
+Discard unchanged with heartbeat: 1h
+Linux: Operating system Zabbix system.sw.os
+agent Preprocessing
+Discard unchanged with heartbeat: 1d
+Linux: Operating system The architecture of the operating system. Zabbix system.sw.arch
+architecture agent Preprocessing
+Discard unchanged with heartbeat: 1d
+Linux: Number of installed Zabbix system.sw.packages.get
+packages agent Preprocessing
+JSON Path: $.length()
+Discard unchanged with heartbeat: 12h
+Triggers
+Name Description Expression Severity Dependencies
+and
+additional
+info
+Linux: Zabbix For passive only agents, host max(/Linux by Zabbix agent/zabbix[host,agent,available], Average Manual close:
+agent is not availability is used with {$AGENT. {$AGENT.TIMEOUT})=0 Yes
+available TIMEOUT} as time threshold.
+Linux: Load The load average per CPU is too high. min(/Linux by Zabbix agent/system.cpu.load[all,avg1],5m)/last Average
+average is too The system may be slow to respond. (/Linux by Zabbix agent/system.cpu.num)>{$LOAD_AVG_PER_CPU.
+high MAX.WARN} and last(/Linux by Zabbix agent/system.cpu.load
+[all,avg5])>0 and last(/Linux by Zabbix agent/system.cpu.load
+[all,avg15])>0
+Linux: High The CPU utilization is too high. The min(/Linux by Zabbix agent/system.cpu.util,5m)>{$CPU.UTIL. Warning Depends on:
+CPU system might be slow to respond. CRIT}
+utilization Linux:
+Load
+average is
+too high
+
+=== PAGE 7 ===
+Linux: High The system is running out of free min(/Linux by Zabbix agent/vm.memory.utilization,5m)> Average Depends on:
+memory memory. {$MEMORY.UTIL.MAX}
+utilization Linux:
+Lack of
+available
+memory
+Linux: Lack max(/Linux by Zabbix agent/vm.memory.size[available],5m)< Average
+of available {$MEMORY.AVAILABLE.MIN} and last(/Linux by Zabbix agent/vm.
+memory memory.size[total])>0
+Linux: High If there is no swap configured, this max(/Linux by Zabbix agent/system.swap.size[,pfree],5m)< Warning Depends on:
+swap space trigger is ignored. {$SWAP.PFREE.MIN.WARN} and last(/Linux by Zabbix agent
+usage /system.swap.size[,total])>0 Linux:
+Lack of
+available
+memory
+Linux:
+High
+memory
+utilization
+Linux: The host uptime is less than 10 minutes. last(/Linux by Zabbix agent/system.uptime)<10m Warning Manual close:
+{HOST. Yes
+NAME} has
+been restarted
+Linux: System The host's system time is different from fuzzytime(/Linux by Zabbix agent/system.localtime,{$SYSTEM. Warning Manual close:
+time is out of Zabbix server time. FUZZYTIME.MAX})=0 Yes
+sync
+Linux: System The name of the system has changed. change(/Linux by Zabbix agent/system.hostname) and length Info Manual close:
+name has Acknowledge to close the problem (last(/Linux by Zabbix agent/system.hostname))>0 Yes
+changed manually.
+Linux: last(/Linux by Zabbix agent/kernel.maxfiles)<{$KERNEL. Info
+Configured MAXFILES.MIN}
+max number
+of open
+filedescriptors
+is too low
+Linux: last(/Linux by Zabbix agent/kernel.maxproc)<{$KERNEL.MAXPROC. Info Depends on:
+Configured MIN}
+max number Linux:
+of processes is Getting
+too low closer to
+process
+limit
+Linux: Getting last(/Linux by Zabbix agent/proc.num)/last(/Linux by Zabbix Warning
+closer to agent/kernel.maxproc)*100>80
+process limit
+Linux: /etc last(/Linux by Zabbix agent/vfs.file.cksum[/etc/passwd, Info Manual close:
+/passwd has sha256],#1)<>last(/Linux by Zabbix agent/vfs.file.cksum[/etc Yes
+been changed /passwd,sha256],#2) Depends on:
+Linux:
+System
+name has
+changed
+Linux:
+Operating
+system
+description
+has changed
+Linux: The description of the operating system change(/Linux by Zabbix agent/system.sw.os) and length(last( Info Manual close:
+Operating has changed. Possible reasons are that /Linux by Zabbix agent/system.sw.os))>0 Yes
+system the system has been updated or Depends on:
+description replaced. Acknowledge to close the
+has changed problem manually. Linux:
+System
+name has
+changed
+
+=== PAGE 8 ===
+Linux: change(/Linux by Zabbix agent/system.sw.packages.get)<>0 Warning Manual close:
+Number of Yes
+installed
+packages has
+been changed
+Мониторинг Docker сервиса
+Items
+Name Description Type Key and additional info
+Docker: Ping Zabbix docker.ping
+agent Preprocessing
+Discard unchanged with heartbeat: 10m
+Docker: Get info Zabbix docker.info
+agent
+Docker: Get containers Zabbix docker.containers
+agent
+Docker: Get images Zabbix docker.images
+agent
+Docker: Get data_usage Zabbix docker.data_usage
+agent
+Docker: Containers total Total number of containers on this host. Dependent docker.containers.total
+item Preprocessing
+JSON Path: $.Containers
+Docker: Containers running Total number of containers running on this host. Dependent docker.containers.running
+item Preprocessing
+JSON Path: $.ContainersRunning
+Docker: Containers stopped Total number of containers stopped on this host. Dependent docker.containers.stopped
+item Preprocessing
+JSON Path: $.ContainersStopped
+Docker: Containers paused Total number of containers paused on this host. Dependent docker.containers.paused
+item Preprocessing
+JSON Path: $.ContainersPaused
+Docker: Images total Number of images with intermediate image layers. Dependent docker.images.total
+item Preprocessing
+JSON Path: $.Images
+Docker: Storage driver Docker storage driver. Dependent docker.driver
+item Preprocessing
+https://docs.docker.com/storage/storagedriver/
+JSON Path: $.Driver
+Discard unchanged with heartbeat: 1d
+Docker: Memory limit Dependent docker.mem_limit.enabled
+enabled item Preprocessing
+JSON Path: $.MemoryLimit
+Boolean to decimal
+Discard unchanged with heartbeat: 1d
+
+=== PAGE 9 ===
+Docker: Swap limit enabled Dependent docker.swap_limit.enabled
+item Preprocessing
+JSON Path: $.SwapLimit
+Boolean to decimal
+Discard unchanged with heartbeat: 1d
+Docker: Kernel memory Dependent docker.kernel_mem.enabled
+enabled item Preprocessing
+JSON Path: $.KernelMemory
+Boolean to decimal
+Discard unchanged with heartbeat: 1d
+Docker: Kernel memory TCP Dependent docker.kernel_mem_tcp.enabled
+enabled item Preprocessing
+JSON Path: $.KernelMemoryTCP
+Boolean to decimal
+Discard unchanged with heartbeat: 1d
+Docker: CPU CFS Period https://docs.docker.com/config/containers/resource_constraints/#configure-the- Dependent docker.cpu_cfs_period.enabled
+enabled default-cfs-scheduler item Preprocessing
+JSON Path: $.CpuCfsPeriod
+Boolean to decimal
+Discard unchanged with heartbeat: 1d
+Docker: CPU CFS Quota https://docs.docker.com/config/containers/resource_constraints/#configure-the- Dependent docker.cpu_cfs_quota.enabled
+enabled default-cfs-scheduler item Preprocessing
+JSON Path: $.CpuCfsQuota
+Boolean to decimal
+Discard unchanged with heartbeat: 1d
+Docker: CPU Shares enabled https://docs.docker.com/config/containers/resource_constraints/#configure-the- Dependent docker.cpu_shares.enabled
+default-cfs-scheduler item Preprocessing
+JSON Path: $.CPUShares
+Boolean to decimal
+Discard unchanged with heartbeat: 1d
+Docker: CPU Set enabled https://docs.docker.com/config/containers/resource_constraints/#configure-the- Dependent docker.cpu_set.enabled
+default-cfs-scheduler item Preprocessing
+JSON Path: $.CPUSet
+Boolean to decimal
+Discard unchanged with heartbeat: 1d
+Docker: Pids limit enabled Dependent docker.pids_limit.enabled
+item Preprocessing
+JSON Path: $.PidsLimit
+Boolean to decimal
+Discard unchanged with heartbeat: 1d
+Docker: IPv4 Forwarding Dependent docker.ipv4_forwarding.enabled
+enabled item Preprocessing
+JSON Path: $.IPv4Forwarding
+Boolean to decimal
+Discard unchanged with heartbeat: 1d
+Docker: Debug enabled Dependent docker.debug.enabled
+item Preprocessing
+JSON Path: $.Debug
+Boolean to decimal
+Discard unchanged with heartbeat: 1d
+
+=== PAGE 10 ===
+Docker: Nfd Number of used File Descriptors. Dependent docker.nfd
+item Preprocessing
+JSON Path: $.NFd
+Docker: OomKill disabled Dependent docker.oomkill.disabled
+item Preprocessing
+JSON Path: $.OomKillDisable
+Boolean to decimal
+Discard unchanged with heartbeat: 1d
+Docker: Goroutines Number of goroutines. Dependent docker.goroutines
+item Preprocessing
+JSON Path: $.NGoroutines
+Docker: Logging driver Dependent docker.logging_driver
+item Preprocessing
+JSON Path: $.LoggingDriver
+Discard unchanged with heartbeat: 1d
+Docker: Cgroup driver Dependent docker.cgroup_driver
+item Preprocessing
+JSON Path: $.CgroupDriver
+Discard unchanged with heartbeat: 1d
+Docker: NEvents listener Dependent docker.nevents_listener
+item Preprocessing
+JSON Path: $.NEventsListener
+Docker: Kernel version Dependent docker.kernel_version
+item Preprocessing
+JSON Path: $.KernelVersion
+Discard unchanged with heartbeat: 1d
+Docker: Operating system Dependent docker.operating_system
+item Preprocessing
+JSON Path: $.OperatingSystem
+Discard unchanged with heartbeat: 1d
+Docker: OS type Dependent docker.os_type
+item Preprocessing
+JSON Path: $.OSType
+Discard unchanged with heartbeat: 1d
+Docker: Architecture Dependent docker.architecture
+item Preprocessing
+JSON Path: $.Architecture
+Discard unchanged with heartbeat: 1d
+Docker: NCPU Dependent docker.ncpu
+item Preprocessing
+JSON Path: $.NCPU
+Docker: Memory total Dependent docker.mem.total
+item Preprocessing
+JSON Path: $.MemTotal
+
+=== PAGE 11 ===
+Docker: Docker root dir Dependent docker.root_dir
+item Preprocessing
+JSON Path: $.DockerRootDir
+Discard unchanged with heartbeat: 1d
+Docker: Name Dependent docker.name
+item
+Preprocessing
+JSON Path: $.Name
+Docker: Server version Dependent docker.server_version
+item Preprocessing
+JSON Path: $.ServerVersion
+Discard unchanged with heartbeat: 1d
+Docker: Default runtime Dependent docker.default_runtime
+item Preprocessing
+JSON Path: $.DefaultRuntime
+Discard unchanged with heartbeat: 1d
+Docker: Live restore enabled Dependent docker.live_restore.enabled
+item Preprocessing
+JSON Path: $.LiveRestoreEnabled
+Boolean to decimal
+Discard unchanged with heartbeat: 1d
+Docker: Layers size Dependent docker.layers_size
+item Preprocessing
+JSON Path: $.LayersSize
+Docker: Images size Dependent docker.images_size
+item Preprocessing
+JSON Path: $.Images[*].Size.sum()
+Docker: Containers size Dependent docker.containers_size
+item Preprocessing
+JSON Path: $.Containers[*].SizeRw.
+sum()
+Docker: Volumes size Dependent docker.volumes_size
+item Preprocessing
+JSON Path: $.Volumes[*].UsageData.
+Size.sum()
+Docker: Images available Number of top-level images. Dependent docker.images.top_level
+item Preprocessing
+JSON Path: $.length()
+Triggers
+Name Description Expression Severity Dependencies
+and
+additional
+info
+Docker: last(/Docker by Zabbix agent 2/docker.ping)=0 Average Manual close:
+Service is Yes
+down
+
+=== PAGE 12 ===
+Docker: Zabbix has not received nodata(/Docker by Zabbix agent 2/docker.name,30m)=1 Warning Manual close:
+Failed to data for items for the last 30 Yes
+fetch info minutes. Depends on:
+data
+Docker:
+Service is
+down
+Docker: Docker version has last(/Docker by Zabbix agent 2/docker.server_version,#1)<>last( Info Manual close:
+Version changed. Acknowledge to /Docker by Zabbix agent 2/docker.server_version,#2) and length(last( Yes
+has close the problem manually. /Docker by Zabbix agent 2/docker.server_version))>0
+changed
+Мониторинг Application
+Приложение должно иметь endpoint в формате prometheus /metrics
+Библиотеки можно посмотреть тут https://prometheus.io/docs/instrumenting/clientlibs/
+Бизнес-мониторинг: реализуется с помощью метода /health, должен возвращать три состояния:
+Healthy - система "здорова"
+Degraded - снижение качества работы системы. Необходимо указать параметры качества и кому отправлять в случае несоответствия.
+Unhealthy - система не работает. Требуется перезапуск. Должен быть EndPoint, который производит перезапуск.
+Руководитель проекта и разработчик должны определить бизнес-критерии и, возможно, технические критерии (например, отсутствие связи с СУБД, брокером
+сообщений и т.д.), которые необходимо контролировать.
+Пример: падение уровня mac-адресов ниже какого-то предела, или падение RTB запросов ниже определенного значения, или какая-то операция не
+выполняется n-раз подряд.
+см. описание примера технологии мониторинга по ссылке Мониторинг бизнес-метрик сервисов
+Руководитель проекта должен указать, нужно ли ему для Технического и Бизнес-мониторинга:
+отражение в Grafana (или в др. средствах отражения информации из Prometheus в читаемом виде);
+настройка получения уведомлений заинтересованным лицам (указать куда и кому: на почту, маттермост, телеграмм, иное)
+Логирование
+данный раздел заполняет Руководитель проекта совместно с Разработчиком
+Требуется логирование STDOUT и STDERR докер-контейнера в Elasticsearch (команда docker logs без опции --details).
+С возможностью доступа через Kibana.
+Сетевая связность
+данный раздел заполняет Сетевой администратор
+Доступы к сервису
+данный раздел заполняют Сетевой администратор совместно с Разработчиком и Руководителем проекта
+Пример: с точки зрения Руководителя проекта доступ к сервису должны иметь все компьютеры, на которых установлена АПР-Система, с точки зрения
+Сетевого администратора – это набор подсетей
+
+=== PAGE 13 ===
+

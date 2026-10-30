@@ -1,0 +1,67 @@
+{
+  "status": "structural_checks_passed",
+  "run_id": "8f61cd5f8f244257b5152aa4963d3792",
+  "parent_run_id": "a59f1cc9c2e1489ca2b1b6ed2658f889",
+  "origin": "reviewed_contract",
+  "limitations": [
+    "Structural document checks only; application tests, database, build and security scanning were not executed."
+  ],
+  "metrics": {
+    "model_calls": 0,
+    "calls": [],
+    "input_tokens": null,
+    "output_tokens": null,
+    "seconds": 2.203,
+    "repair_attempts": 0,
+    "manual_actions": [
+      {
+        "type": "contract_review",
+        "source_file": "parking-contracts-reviewed.json"
+      },
+      {
+        "type": "contract_review",
+        "source_file": "parking-contracts-reviewed.json"
+      },
+      {
+        "type": "contract_review",
+        "source_file": "parking-contracts-reviewed.json"
+      },
+      {
+        "type": "contract_review",
+        "source_file": "parking-contracts-reviewed.json"
+      },
+      {
+        "type": "contract_review",
+        "source_file": "parking-contracts-reviewed.json"
+      },
+      {
+        "type": "contract_review",
+        "source_file": "parking-contracts-reviewed.json"
+      }
+    ]
+  },
+  "error": null,
+  "validation_seconds": 1.483,
+  "checks": [
+    {
+      "name": "JSON Schema 2020-12 shape and typed fields",
+      "status": "passed"
+    },
+    {
+      "name": "Entity, index, FK and FR references",
+      "status": "passed"
+    },
+    {
+      "name": "Roles, operations, screens and event deduplication",
+      "status": "passed"
+    },
+    {
+      "name": "OpenAPI 3.1 via openapi-spec-validator",
+      "status": "passed"
+    },
+    {
+      "name": "Every FR has an acceptance scenario",
+      "status": "passed"
+    }
+  ]
+}

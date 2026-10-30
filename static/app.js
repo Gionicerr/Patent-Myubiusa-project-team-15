@@ -1,7 +1,7 @@
 "use strict";
 const $ = id => document.getElementById(id);
 let csrf = "", currentId = null, timer = null, currentJob = null, activeFile = null;
-const names = {"system-analysis.md":"Системный анализ", "acceptance-tests.md":"Сценарии проверки", "traceability.csv":"Связи требований и тестов", "quality-report.json":"Отчет о проверке", "requirements.md":"Исходные требования", "analysis.json":"Анализ · JSON", "design.json":"Проект · JSON", "answers.json":"Ответы на вопросы", "failure-report.json":"Отчет об ошибке"};
+const names = {"system-analysis.md":"Системный анализ", "acceptance-tests.md":"Сценарии проверки", "traceability.csv":"Связи требований и тестов", "quality-report.json":"Отчет о проверке", "requirements.md":"Исходные требования", "analysis.json":"Анализ · JSON", "design.json":"Проект · JSON", "answers.json":"Ответы на вопросы", "failure-report.json":"Отчет об ошибке", "cancellation-report.json":"Отчет об отмене", "pending-report.json":"Метрики анализа", "openapi.json":"OpenAPI", "data-model.json":"Модель данных", "screens.json":"Экраны", "events.json":"События", "permissions.json":"Права", "assumptions-and-questions.md":"Допущения и вопросы"};
 function notice(message, error=false) { $("notice").textContent=message; $("notice").hidden=!message; $("notice").classList.toggle("error",error); }
 async function api(path, body) {
   const options = body===undefined ? {} : {method:"POST",headers:{"Content-Type":"application/json","X-Pipeline-Token":csrf},body:JSON.stringify(body)};
@@ -53,7 +53,7 @@ function render(job) {
 }
 async function poll() {
   clearTimeout(timer);
-  try { const job=await api("/api/runs/"+currentId);render(job);if(job.status==="running") timer=setTimeout(poll,1000); }
+  try { const job=await api("/api/runs/"+currentId);render(job);if(job.status==="running" || (job.status==="cancelled" && job.report===null)) timer=setTimeout(poll,1000); }
   catch(error) { notice(error.message,true);setBusy(false); }
 }
 $("continue").onclick=async()=>{
@@ -66,7 +66,7 @@ $("cancel").onclick=async()=>{try{await api(`/api/runs/${currentId}/cancel`,{});
 function metric(value,label) { const box=document.createElement("div");box.className="metric";const strong=document.createElement("strong");strong.textContent=value;const span=document.createElement("span");span.textContent=label;box.append(strong,span);return box; }
 function showResults(job) {
   $("results").hidden=false;$("result-kind").textContent=job.demo?"УЧЕБНЫЙ ПРИМЕР · ЗАРАНЕЕ ПОДГОТОВЛЕН":"РЕЗУЛЬТАТ ЗАПУСКА";
-  $("results").querySelector("h2").textContent=job.status==="failed"?"Сохранен отчет об ошибке":"Документы готовы";
+  $("results").querySelector("h2").textContent=job.status==="failed"?"Сохранен отчет об ошибке":job.status==="cancelled"?"Сохранен отчет об отмене":job.status==="awaiting_answers"?"Анализ готов · ожидаются ответы":"Документы готовы";
   const m=job.report.metrics;
   $("metrics").replaceChildren(metric(job.analysis?.functional_requirements.length ?? "—","требований выделено"),metric(job.design?.test_scenarios.length ?? "—","сценариев описано · не выполнено"),metric(m.model_calls,"обращений к модели"),metric(m.input_tokens!==null && m.output_tokens!==null?(m.input_tokens+m.output_tokens).toLocaleString("ru-RU"):"нет данных","токенов · по данным API"));
   $("download-all").href=`/api/runs/${job.id}/archive`;
@@ -85,7 +85,8 @@ async function init() {
     if(config.has_key)$("api-key").placeholder="Используется ключ из настроек сервера";
     $("base-url").dispatchEvent(new Event("input"));
     $("example").onclick=()=>{$("requirements").value=config.example_requirements;updateCount();};
-    const saved=sessionStorage.getItem("pipeline-run");if(saved){currentId=saved;await poll();}
+    const saved=new URLSearchParams(window.location.search).get("run") || sessionStorage.getItem("pipeline-run");
+    if(saved && /^[a-f0-9]{32}$/.test(saved)){currentId=saved;sessionStorage.setItem("pipeline-run",saved);await poll();}
   }catch(error){notice(error.message,true);}
 }
 init();

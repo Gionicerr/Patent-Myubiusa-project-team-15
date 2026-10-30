@@ -1,0 +1,134 @@
+[
+  {
+    "id": "driver",
+    "name": "Водитель",
+    "permissions": [
+      {
+        "operation_id": "listVehicles",
+        "scope": "own"
+      },
+      {
+        "operation_id": "listObjects",
+        "scope": "all"
+      },
+      {
+        "operation_id": "getObject",
+        "scope": "all"
+      },
+      {
+        "operation_id": "ingestPosition",
+        "scope": "own"
+      },
+      {
+        "operation_id": "getMatch",
+        "scope": "own"
+      },
+      {
+        "operation_id": "createSession",
+        "scope": "own"
+      },
+      {
+        "operation_id": "listVehicleSessions",
+        "scope": "own"
+      },
+      {
+        "operation_id": "getSession",
+        "scope": "own"
+      },
+      {
+        "operation_id": "confirmSession",
+        "scope": "own"
+      },
+      {
+        "operation_id": "getPaymentLink",
+        "scope": "own"
+      },
+      {
+        "operation_id": "listVehicleRoutes",
+        "scope": "own"
+      },
+      {
+        "operation_id": "listRoutePositions",
+        "scope": "own"
+      },
+      {
+        "operation_id": "listNotifications",
+        "scope": "own"
+      }
+    ]
+  },
+  {
+    "id": "admin",
+    "name": "Администратор",
+    "permissions": [
+      {
+        "operation_id": "listVehicles",
+        "scope": "all"
+      },
+      {
+        "operation_id": "listObjects",
+        "scope": "all"
+      },
+      {
+        "operation_id": "getObject",
+        "scope": "all"
+      },
+      {
+        "operation_id": "getMatch",
+        "scope": "all"
+      },
+      {
+        "operation_id": "listVehicleSessions",
+        "scope": "all"
+      },
+      {
+        "operation_id": "getSession",
+        "scope": "all"
+      },
+      {
+        "operation_id": "listVehicleRoutes",
+        "scope": "all"
+      },
+      {
+        "operation_id": "listRoutePositions",
+        "scope": "all"
+      },
+      {
+        "operation_id": "listNotifications",
+        "scope": "all"
+      },
+      {
+        "operation_id": "listEvents",
+        "scope": "all"
+      },
+      {
+        "operation_id": "listAllSessions",
+        "scope": "all"
+      },
+      {
+        "operation_id": "listAllRoutes",
+        "scope": "all"
+      },
+      {
+        "operation_id": "getMatchConfiguration",
+        "scope": "all"
+      },
+      {
+        "operation_id": "updateMatchConfiguration",
+        "scope": "all"
+      },
+      {
+        "operation_id": "importSource",
+        "scope": "all"
+      },
+      {
+        "operation_id": "getImport",
+        "scope": "all"
+      },
+      {
+        "operation_id": "advanceDemoClock",
+        "scope": "all"
+      }
+    ]
+  }
+]

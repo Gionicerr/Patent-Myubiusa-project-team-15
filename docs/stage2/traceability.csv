@@ -1,0 +1,16 @@
+﻿requirement_id,requirement,test_scenario_ids,api_endpoints
+FR-001,Система определяет парковочную зону по координатам и показывает ее номер.,TC-001; TC-016; TC-017,GET /api/parking-objects; GET /api/parking-objects/{objectId}; POST /api/vehicles/{vehicleId}/positions; GET /api/vehicles/{vehicleId}/match; GET /api/admin/matching; PUT /api/admin/matching; POST /api/admin/imports
+FR-002,Водитель подтверждает парковочную сессию и время ее окончания.,TC-002; TC-018,POST /api/vehicles/{vehicleId}/sessions; GET /api/vehicles/{vehicleId}/sessions; GET /api/sessions/{sessionId}; POST /api/sessions/{sessionId}/confirm
+FR-003,За 10 минут до окончания система предупреждает водителя.,TC-003; TC-019,GET /api/vehicles/{vehicleId}/notifications; POST /api/admin/clock/advance
+FR-004,При переходе в другую зону система предлагает проверить необходимость новой оплаты.,TC-004; TC-016; TC-018,POST /api/vehicles/{vehicleId}/positions; GET /api/vehicles/{vehicleId}/match; GET /api/vehicles/{vehicleId}/notifications; GET /api/admin/matching; PUT /api/admin/matching
+FR-005,Администратор просматривает историю сессий и событий.,TC-005; TC-020,GET /api/admin/events; GET /api/admin/sessions
+FR-006,Реальную оплату выполнять не нужно; внешний сервис заменяется mock-адаптером.,TC-006; TC-018,POST /api/sessions/{sessionId}/payment-link
+FR-007,Определение местоположения автомобиля.,TC-007; TC-017,POST /api/vehicles/{vehicleId}/positions; GET /api/vehicles/{vehicleId}/match
+FR-008,"Отображение номера, границ и доступных параметров зоны.",TC-008; TC-021; TC-022,GET /api/parking-objects; GET /api/parking-objects/{objectId}; POST /api/admin/imports; GET /api/admin/imports/{batchId}
+FR-009,Отслеживание перемещения и отображение маршрута.,TC-009,POST /api/vehicles/{vehicleId}/positions; GET /api/vehicles/{vehicleId}/routes; GET /api/routes/{routeId}/positions
+FR-010,Определение выезда из текущего объекта парковки.,TC-010; TC-016,POST /api/vehicles/{vehicleId}/positions; GET /api/vehicles/{vehicleId}/notifications; GET /api/admin/matching; PUT /api/admin/matching
+FR-011,Контроль состояния и времени окончания парковочной сессии.,TC-011; TC-019,POST /api/vehicles/{vehicleId}/sessions; GET /api/vehicles/{vehicleId}/sessions; GET /api/sessions/{sessionId}; POST /api/sessions/{sessionId}/confirm; POST /api/admin/clock/advance
+FR-012,Переход к официальному сервису оплаты.,TC-012; TC-023,POST /api/sessions/{sessionId}/payment-link
+FR-013,История парковочных сессий водителя.,TC-013; TC-020,GET /api/vehicles/{vehicleId}/sessions; GET /api/vehicles/{vehicleId}/routes; GET /api/routes/{routeId}/positions
+FR-014,"Административный просмотр автомобилей, зон, сессий, маршрутов, событий и истории.",TC-014; TC-020; TC-021,GET /api/vehicles; GET /api/parking-objects; GET /api/admin/events; GET /api/admin/sessions; GET /api/admin/routes; POST /api/admin/imports; GET /api/admin/imports/{batchId}
+FR-015,"Мобильный интерфейс водителя с картой, текущей зоной, статусом сессии, временем, уведомлениями и переходом к оплате.",TC-015; TC-023,GET /api/vehicles; GET /api/vehicles/{vehicleId}/match; GET /api/sessions/{sessionId}; POST /api/sessions/{sessionId}/payment-link; GET /api/vehicles/{vehicleId}/notifications

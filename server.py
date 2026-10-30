@@ -10,22 +10,12 @@ import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from app.config import load_env
 from app.demo import REQUIREMENTS
 from app.pipeline import Engine
 from app.provider import normalize_config
 
 ROOT = Path(__file__).resolve().parent
-
-
-def load_env():
-    path = ROOT / ".env"
-    if path.exists():
-        for line in path.read_text(encoding="utf-8-sig").splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                key, value = line.split("=", 1)
-                if key.strip() in ("QWEN_BASE_URL", "QWEN_MODEL", "QWEN_API_KEY"):
-                    os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
 def make_server(host="127.0.0.1", port=8765, runs_root=None, client_factory=None):
@@ -76,7 +66,7 @@ def make_server(host="127.0.0.1", port=8765, runs_root=None, client_factory=None
                     name, mime = static[path]
                     return self.send_bytes((ROOT / "static" / name).read_bytes(), mime)
                 if path == "/api/config":
-                    return self.json({"csrf_token": token, "base_url": os.environ.get("QWEN_BASE_URL", ""), "model": os.environ.get("QWEN_MODEL", "Qwen3.8-27B"), "has_key": bool(os.environ.get("QWEN_API_KEY")), "example_requirements": REQUIREMENTS})
+                    return self.json({"csrf_token": token, "base_url": os.environ.get("QWEN_BASE_URL", ""), "model": os.environ.get("QWEN_MODEL", ""), "has_key": bool(os.environ.get("QWEN_API_KEY")), "example_requirements": REQUIREMENTS})
                 parts = path.strip("/").split("/")
                 if len(parts) >= 3 and parts[:2] == ["api", "runs"]:
                     job = engine.snapshot(parts[2])

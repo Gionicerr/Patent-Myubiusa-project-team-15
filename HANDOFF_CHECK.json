@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "scope": "packaging_only",
+  "payload_files": 145,
+  "known_secret_value_matches": 0,
+  "credential_pattern_matches": 0,
+  "relative_paths_only": true,
+  "forbidden_paths_present": false,
+  "source_files_modified": false,
+  "tests_rerun": false,
+  "new_qwen_requests": 0,
+  "vm_access": false,
+  "scan_methods": [
+    "allowlisted files and denied paths/types",
+    "in-memory comparison with credential values from local configuration/environment",
+    "key/JWT/PEM and literal credential patterns",
+    "password-shaped text with reviewed code/macro exclusions"
+  ],
+  "note": "Explicit synthetic unit-test credential fixtures are retained; actual .env/credentials are excluded."
+}

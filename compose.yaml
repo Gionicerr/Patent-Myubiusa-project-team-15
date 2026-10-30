@@ -5,8 +5,10 @@ services:
       - "127.0.0.1:8765:8765"
     environment:
       QWEN_BASE_URL: ${QWEN_BASE_URL:-}
-      QWEN_MODEL: ${QWEN_MODEL:-Qwen3.8-27B}
+      QWEN_MODEL: ${QWEN_MODEL:-}
       QWEN_API_KEY: ${QWEN_API_KEY:-}
+      QWEN_TIMEOUT: ${QWEN_TIMEOUT:-180}
+      QWEN_MAX_TOKENS: ${QWEN_MAX_TOKENS:-6500}
     volumes:
       - results:/app/runs
     restart: unless-stopped

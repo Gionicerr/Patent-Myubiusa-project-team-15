@@ -1,0 +1,9 @@
+.git
+.env
+.env.*
+!.env.example
+.venv
+.idea
+__pycache__
+**/__pycache__
+runs

@@ -75,7 +75,7 @@ class EngineTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.engine = Engine(self.temp.name, FakeClient)
+        self.engine = Engine(self.temp.name, FakeClient, design_schema_version="1.0")
 
     def test_demo_exports_without_model_and_marks_example(self):
         job_id = self.engine.create("different input", demo=True)
@@ -135,6 +135,7 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(job["status"], "failed")
         self.assertEqual(job["report"]["metrics"]["model_calls"], 2)
         self.assertEqual(job["report"]["metrics"]["repair_attempts"], 1)
+        self.assertTrue(all(c["validation_status"] == "error" for c in job["report"]["metrics"]["calls"]))
         self.assertTrue((Path(self.temp.name) / job_id / "failure-report.json").exists())
 
 
@@ -164,7 +165,7 @@ class ProviderTests(unittest.TestCase):
             server.shutdown(); server.server_close(); thread.join()
 
     def test_missing_usage_stays_unknown_and_http_body_not_exposed(self):
-        with patch("urllib.request.urlopen", side_effect=urllib.error.HTTPError("url", 401, "secret-for-test", {}, None)):
+        with patch("urllib.request.OpenerDirector.open", side_effect=urllib.error.HTTPError("url", 401, "secret-for-test", {}, None)):
             client = Client({"endpoint": "http://localhost/v1/chat/completions", "model": "q", "api_key": "secret-for-test"})
             with self.assertRaises(ProviderError) as caught:
                 client.complete([], "test", 1)
@@ -198,9 +199,11 @@ class ServerTests(unittest.TestCase):
                 with self.assertRaises(urllib.error.HTTPError) as host_error:
                     urllib.request.urlopen(bad_host)
                 self.assertEqual(host_error.exception.code, 403)
+                host_error.exception.close()
                 with self.assertRaises(urllib.error.HTTPError) as caught:
                     post("/api/demo", {}, "bad-token")
                 self.assertEqual(caught.exception.code, 403)
+                caught.exception.close()
                 job_id = post("/api/demo", {}, config["csrf_token"])["id"]
                 job = wait(server.engine, job_id)
                 self.assertEqual(job["status"], "complete")
@@ -208,8 +211,9 @@ class ServerTests(unittest.TestCase):
                 self.assertEqual(set(archive.namelist()), set(job["files"]))
                 preview = json.loads(get(f"/api/runs/{job_id}/files/system-analysis.md?preview=1"))
                 self.assertIn("УЧЕБНЫЙ ПРИМЕР", preview["content"])
-                with self.assertRaises(urllib.error.HTTPError):
+                with self.assertRaises(urllib.error.HTTPError) as missing:
                     get(f"/api/runs/{job_id}/files/.env")
+                missing.exception.close()
             finally:
                 server.shutdown(); server.server_close(); thread.join()
 

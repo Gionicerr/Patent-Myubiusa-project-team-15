@@ -1,0 +1,179 @@
+[
+  {
+    "name": "ParkingEvent",
+    "requirement_ids": [
+      "FR-003",
+      "FR-004",
+      "FR-005",
+      "FR-010",
+      "FR-011"
+    ],
+    "schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "entry",
+            "exit",
+            "object_changed",
+            "session_started",
+            "session_confirmed",
+            "warning_10_minutes",
+            "session_expired",
+            "location_error"
+          ]
+        },
+        "occurredAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "vehicleId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "observationId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "objectId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "previousObjectId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "sessionId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "dedupKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "details": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "occurredAt",
+        "vehicleId",
+        "dedupKey",
+        "details"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "session_started",
+                  "session_confirmed",
+                  "warning_10_minutes",
+                  "session_expired"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "sessionId"
+            ],
+            "properties": {
+              "sessionId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "entry",
+                  "object_changed"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "objectId"
+            ],
+            "properties": {
+              "objectId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "exit",
+                  "object_changed"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "previousObjectId"
+            ],
+            "properties": {
+              "previousObjectId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "id_field": "id",
+    "time_field": "occurredAt",
+    "idempotency_key": [
+      "dedupKey"
+    ],
+    "delivery": "at_least_once",
+    "deduplication": "Уникальный dedupKey в транзакции: для позиции vehicleId/sourceObservationId/type/from/to; для предупреждения sessionId/revision/warning10; для окончания sessionId/revision/expired. Повтор команды возвращает прежний результат; уведомление уникально по eventId."
+  }
+]

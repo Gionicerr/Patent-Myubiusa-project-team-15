@@ -1,0 +1,1385 @@
+[
+  {
+    "name": "Account",
+    "description": "Роль определяется доверенной идентификацией; пароли в предметной модели не хранятся.",
+    "fields": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Внутренний UUID",
+        "required": true
+      },
+      {
+        "name": "displayName",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "description": "displayName",
+        "required": true
+      },
+      {
+        "name": "role",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "driver",
+            "admin"
+          ]
+        },
+        "description": "role",
+        "required": true
+      }
+    ],
+    "primary_key": [
+      "id"
+    ],
+    "relations": [],
+    "indexes": []
+  },
+  {
+    "name": "Vehicle",
+    "description": "Vehicle",
+    "fields": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Внутренний UUID",
+        "required": true
+      },
+      {
+        "name": "driverId",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "driverId",
+        "required": true
+      },
+      {
+        "name": "registration",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "description": "registration",
+        "required": true
+      },
+      {
+        "name": "displayName",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "description": "displayName",
+        "required": true
+      },
+      {
+        "name": "sourceCity",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "spb",
+            "moscow_partner"
+          ],
+          "default": "spb"
+        },
+        "required": true,
+        "description": "Изолированный источник сопоставления; для основного кейса spb"
+      }
+    ],
+    "primary_key": [
+      "id"
+    ],
+    "relations": [
+      {
+        "field": "driverId",
+        "target_entity": "Account",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "ux_vehicle_registration",
+        "fields": [
+          "registration"
+        ],
+        "unique": true,
+        "method": "btree"
+      },
+      {
+        "name": "ix_vehicle_driver",
+        "fields": [
+          "driverId"
+        ],
+        "unique": false,
+        "method": "btree"
+      }
+    ]
+  },
+  {
+    "name": "ImportBatch",
+    "description": "ImportBatch",
+    "fields": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Внутренний UUID",
+        "required": true
+      },
+      {
+        "name": "city",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "description": "city",
+        "required": true
+      },
+      {
+        "name": "sha256",
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "description": "sha256",
+        "required": true
+      },
+      {
+        "name": "createdAt",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "createdAt",
+        "required": true
+      },
+      {
+        "name": "status",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "completed",
+            "failed"
+          ]
+        },
+        "description": "status",
+        "required": true
+      },
+      {
+        "name": "accepted",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "description": "accepted",
+        "required": true
+      },
+      {
+        "name": "quarantined",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "description": "quarantined",
+        "required": true
+      },
+      {
+        "name": "issues",
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "row": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "externalZoneId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "code": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "row",
+              "externalZoneId",
+              "code",
+              "description"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "description": "issues",
+        "required": true
+      }
+    ],
+    "primary_key": [
+      "id"
+    ],
+    "relations": [],
+    "indexes": [
+      {
+        "name": "ux_import_hash",
+        "fields": [
+          "city",
+          "sha256"
+        ],
+        "unique": true,
+        "method": "btree"
+      }
+    ]
+  },
+  {
+    "name": "ParkingObject",
+    "description": "Объект источника, НЕ подтверждённая тарифная зона. Исходные тарифы и WKT сохраняются; невалидный объект исключается из matching.",
+    "fields": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Внутренний UUID",
+        "required": true
+      },
+      {
+        "name": "city",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "description": "city",
+        "required": true
+      },
+      {
+        "name": "externalZoneId",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": "Исходное поле источника без пересчёта",
+        "required": true
+      },
+      {
+        "name": "displayName",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "description": "Исходное поле источника без пересчёта",
+        "required": true
+      },
+      {
+        "name": "geometry",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200000
+        },
+        "description": "Исходное поле источника без пересчёта",
+        "required": true
+      },
+      {
+        "name": "price",
+        "schema": {
+          "type": "integer"
+        },
+        "description": "Исходное поле источника без пересчёта",
+        "required": true
+      },
+      {
+        "name": "priceDescription",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "description": "Исходное поле источника без пересчёта",
+        "required": true
+      },
+      {
+        "name": "minTime",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "description": "Исходное поле источника без пересчёта",
+        "required": true
+      },
+      {
+        "name": "timeStep",
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "description": "Исходное поле источника без пересчёта",
+        "required": true
+      },
+      {
+        "name": "tariff",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "hasHolidays": {
+              "type": "boolean"
+            },
+            "periods": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "to": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "duration": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "price": {
+                    "type": "integer"
+                  },
+                  "type": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "from",
+                  "to",
+                  "duration",
+                  "price",
+                  "type"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "hasHolidays",
+            "periods"
+          ],
+          "additionalProperties": false
+        },
+        "description": "Исходное поле источника без пересчёта",
+        "required": true
+      },
+      {
+        "name": "entityState",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "description": "Исходное поле источника без пересчёта",
+        "required": true
+      },
+      {
+        "name": "initDate",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "Исходное поле источника без пересчёта",
+        "required": true
+      },
+      {
+        "name": "lastSyncedAt",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "Исходное поле источника без пересчёта",
+        "required": true
+      },
+      {
+        "name": "importBatchId",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "importBatchId",
+        "required": true
+      },
+      {
+        "name": "geometryGeoJson",
+        "schema": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/Geometry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-db-type": "geometry(Geometry,4326)",
+          "x-derived-from": "original geometry WKT; null for quarantine"
+        },
+        "description": "geometryGeoJson",
+        "required": false
+      },
+      {
+        "name": "geometryState",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "valid",
+            "quarantined"
+          ]
+        },
+        "description": "geometryState",
+        "required": true
+      }
+    ],
+    "primary_key": [
+      "id"
+    ],
+    "relations": [
+      {
+        "field": "importBatchId",
+        "target_entity": "ImportBatch",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "ux_source_object",
+        "fields": [
+          "city",
+          "externalZoneId"
+        ],
+        "unique": true,
+        "method": "btree"
+      },
+      {
+        "name": "ix_object_geometry",
+        "fields": [
+          "geometryGeoJson"
+        ],
+        "unique": false,
+        "method": "gist"
+      },
+      {
+        "name": "ix_object_state",
+        "fields": [
+          "city",
+          "entityState"
+        ],
+        "unique": false,
+        "method": "btree"
+      }
+    ]
+  },
+  {
+    "name": "Route",
+    "description": "Route",
+    "fields": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Внутренний UUID",
+        "required": true
+      },
+      {
+        "name": "vehicleId",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "vehicleId",
+        "required": true
+      },
+      {
+        "name": "startedAt",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "startedAt",
+        "required": true
+      },
+      {
+        "name": "endedAt",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "description": "endedAt",
+        "required": false
+      }
+    ],
+    "primary_key": [
+      "id"
+    ],
+    "relations": [
+      {
+        "field": "vehicleId",
+        "target_entity": "Vehicle",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "ix_route_vehicle_time",
+        "fields": [
+          "vehicleId",
+          "startedAt"
+        ],
+        "unique": false,
+        "method": "btree"
+      }
+    ]
+  },
+  {
+    "name": "PositionObservation",
+    "description": "PositionObservation",
+    "fields": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Внутренний UUID",
+        "required": true
+      },
+      {
+        "name": "vehicleId",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "vehicleId",
+        "required": true
+      },
+      {
+        "name": "routeId",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "description": "routeId",
+        "required": false
+      },
+      {
+        "name": "sourceObservationId",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": "sourceObservationId",
+        "required": true
+      },
+      {
+        "name": "observedAt",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "observedAt",
+        "required": true
+      },
+      {
+        "name": "receivedAt",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "receivedAt",
+        "required": true
+      },
+      {
+        "name": "longitude",
+        "schema": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -180,
+          "maximum": 180
+        },
+        "description": "longitude",
+        "required": false
+      },
+      {
+        "name": "latitude",
+        "schema": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -90,
+          "maximum": 90
+        },
+        "description": "latitude",
+        "required": false
+      },
+      {
+        "name": "accuracyMeters",
+        "schema": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "description": "accuracyMeters",
+        "required": false
+      },
+      {
+        "name": "locationState",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "available",
+            "no_coordinates",
+            "technical_error"
+          ]
+        },
+        "description": "locationState",
+        "required": true
+      },
+      {
+        "name": "errorCode",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "description": "errorCode",
+        "required": false
+      }
+    ],
+    "primary_key": [
+      "id"
+    ],
+    "relations": [
+      {
+        "field": "vehicleId",
+        "target_entity": "Vehicle",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      },
+      {
+        "field": "routeId",
+        "target_entity": "Route",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "ux_observation",
+        "fields": [
+          "vehicleId",
+          "sourceObservationId"
+        ],
+        "unique": true,
+        "method": "btree"
+      },
+      {
+        "name": "ix_position_vehicle_time",
+        "fields": [
+          "vehicleId",
+          "observedAt"
+        ],
+        "unique": false,
+        "method": "btree"
+      }
+    ]
+  },
+  {
+    "name": "ParkingSession",
+    "description": "ParkingSession",
+    "fields": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Внутренний UUID",
+        "required": true
+      },
+      {
+        "name": "vehicleId",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "vehicleId",
+        "required": true
+      },
+      {
+        "name": "objectId",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "objectId",
+        "required": true
+      },
+      {
+        "name": "routeId",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "description": "routeId",
+        "required": false
+      },
+      {
+        "name": "startedAt",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "startedAt",
+        "required": true
+      },
+      {
+        "name": "endAt",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "endAt",
+        "required": true
+      },
+      {
+        "name": "status",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "active",
+            "expired"
+          ]
+        },
+        "description": "status",
+        "required": true
+      },
+      {
+        "name": "paymentConfirmed",
+        "schema": {
+          "type": "boolean",
+          "const": false
+        },
+        "description": "paymentConfirmed",
+        "required": true
+      },
+      {
+        "name": "revision",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "description": "revision",
+        "required": true
+      }
+    ],
+    "primary_key": [
+      "id"
+    ],
+    "relations": [
+      {
+        "field": "vehicleId",
+        "target_entity": "Vehicle",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      },
+      {
+        "field": "objectId",
+        "target_entity": "ParkingObject",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      },
+      {
+        "field": "routeId",
+        "target_entity": "Route",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "ux_one_active_session",
+        "fields": [
+          "vehicleId"
+        ],
+        "unique": true,
+        "method": "btree",
+        "predicate": {
+          "field": "status",
+          "operator": "eq",
+          "value": "active"
+        }
+      },
+      {
+        "name": "ix_session_expiry",
+        "fields": [
+          "status",
+          "endAt"
+        ],
+        "unique": false,
+        "method": "btree"
+      },
+      {
+        "name": "ix_session_vehicle_time",
+        "fields": [
+          "vehicleId",
+          "startedAt"
+        ],
+        "unique": false,
+        "method": "btree"
+      }
+    ]
+  },
+  {
+    "name": "ParkingEvent",
+    "description": "ParkingEvent",
+    "fields": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Внутренний UUID",
+        "required": true
+      },
+      {
+        "name": "type",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "entry",
+            "exit",
+            "object_changed",
+            "session_started",
+            "session_confirmed",
+            "warning_10_minutes",
+            "session_expired",
+            "location_error"
+          ]
+        },
+        "description": "type",
+        "required": true
+      },
+      {
+        "name": "occurredAt",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "occurredAt",
+        "required": true
+      },
+      {
+        "name": "vehicleId",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "vehicleId",
+        "required": true
+      },
+      {
+        "name": "observationId",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "description": "observationId",
+        "required": false
+      },
+      {
+        "name": "objectId",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "description": "objectId",
+        "required": false
+      },
+      {
+        "name": "previousObjectId",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "description": "previousObjectId",
+        "required": false
+      },
+      {
+        "name": "sessionId",
+        "schema": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "description": "sessionId",
+        "required": false
+      },
+      {
+        "name": "dedupKey",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "description": "dedupKey",
+        "required": true
+      },
+      {
+        "name": "details",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "description": "details",
+        "required": true
+      }
+    ],
+    "primary_key": [
+      "id"
+    ],
+    "relations": [
+      {
+        "field": "vehicleId",
+        "target_entity": "Vehicle",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      },
+      {
+        "field": "observationId",
+        "target_entity": "PositionObservation",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      },
+      {
+        "field": "objectId",
+        "target_entity": "ParkingObject",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      },
+      {
+        "field": "previousObjectId",
+        "target_entity": "ParkingObject",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      },
+      {
+        "field": "sessionId",
+        "target_entity": "ParkingSession",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "ux_event_dedup",
+        "fields": [
+          "dedupKey"
+        ],
+        "unique": true,
+        "method": "btree"
+      },
+      {
+        "name": "ix_event_vehicle_time",
+        "fields": [
+          "vehicleId",
+          "occurredAt"
+        ],
+        "unique": false,
+        "method": "btree"
+      }
+    ],
+    "constraints": {
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "session_started",
+                  "session_confirmed",
+                  "warning_10_minutes",
+                  "session_expired"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "sessionId"
+            ],
+            "properties": {
+              "sessionId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "entry",
+                  "object_changed"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "objectId"
+            ],
+            "properties": {
+              "objectId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "exit",
+                  "object_changed"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "previousObjectId"
+            ],
+            "properties": {
+              "previousObjectId": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "Notification",
+    "description": "Notification",
+    "fields": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Внутренний UUID",
+        "required": true
+      },
+      {
+        "name": "vehicleId",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "vehicleId",
+        "required": true
+      },
+      {
+        "name": "eventId",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "eventId",
+        "required": true
+      },
+      {
+        "name": "message",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "description": "message",
+        "required": true
+      },
+      {
+        "name": "createdAt",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": "createdAt",
+        "required": true
+      },
+      {
+        "name": "kind",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "warning",
+            "check_payment",
+            "location_error"
+          ]
+        },
+        "description": "kind",
+        "required": true
+      }
+    ],
+    "primary_key": [
+      "id"
+    ],
+    "relations": [
+      {
+        "field": "vehicleId",
+        "target_entity": "Vehicle",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      },
+      {
+        "field": "eventId",
+        "target_entity": "ParkingEvent",
+        "target_field": "id",
+        "on_delete": "RESTRICT"
+      }
+    ],
+    "indexes": [
+      {
+        "name": "ux_notification_event",
+        "fields": [
+          "eventId"
+        ],
+        "unique": true,
+        "method": "btree"
+      },
+      {
+        "name": "ix_notification_vehicle",
+        "fields": [
+          "vehicleId",
+          "createdAt"
+        ],
+        "unique": false,
+        "method": "btree"
+      }
+    ]
+  },
+  {
+    "name": "MatchConfiguration",
+    "description": "MatchConfiguration",
+    "fields": [
+      {
+        "name": "id",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "Внутренний UUID",
+        "required": true
+      },
+      {
+        "name": "enterMeters",
+        "schema": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000,
+          "default": 25
+        },
+        "description": "Проектный конфигурируемый порог; не требование заказчика",
+        "required": true
+      },
+      {
+        "name": "exitMeters",
+        "schema": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 2000,
+          "default": 40
+        },
+        "description": "Проектный конфигурируемый порог; не требование заказчика",
+        "required": true
+      },
+      {
+        "name": "confirmSamples",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 3
+        },
+        "description": "Проектный конфигурируемый порог; не требование заказчика",
+        "required": true
+      },
+      {
+        "name": "holdSeconds",
+        "schema": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300,
+          "default": 15
+        },
+        "description": "Проектный конфигурируемый порог; не требование заказчика",
+        "required": true
+      },
+      {
+        "name": "maxAccuracyMeters",
+        "schema": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000,
+          "default": 50
+        },
+        "description": "Проектный конфигурируемый порог; не требование заказчика",
+        "required": true
+      },
+      {
+        "name": "tieMeters",
+        "schema": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 5
+        },
+        "description": "Проектный конфигурируемый порог; не требование заказчика",
+        "required": true
+      },
+      {
+        "name": "city",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "description": "city",
+        "required": true
+      },
+      {
+        "name": "maxObservationAgeSeconds",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600,
+          "default": 30
+        },
+        "required": true,
+        "description": "Проектный конфигурируемый порог времени, не подтверждённый норматив"
+      },
+      {
+        "name": "futureToleranceSeconds",
+        "schema": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60,
+          "default": 5
+        },
+        "required": true,
+        "description": "Проектный конфигурируемый порог времени, не подтверждённый норматив"
+      }
+    ],
+    "primary_key": [
+      "id"
+    ],
+    "relations": [],
+    "indexes": [
+      {
+        "name": "ux_matching_city",
+        "fields": [
+          "city"
+        ],
+        "unique": true,
+        "method": "btree"
+      }
+    ]
+  }
+]

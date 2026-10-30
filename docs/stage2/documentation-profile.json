@@ -1,0 +1,20 @@
+{
+  "profile": "russtech-preparation-1",
+  "scope": "markdown_formatting_only",
+  "machine_files_unchanged": {
+    "analysis.json": "84367d1f5f59ed9f50f57021b375ae9ceb69af605e3f1c67b9fc5476bd773857",
+    "design.json": "943e3a1416061016b68e4f9dddd89437af6ac06ea50a7dfb40fed290cfda6e2a",
+    "answers.json": "4622794befa51cf79ef431076da748ca375840444d62cb1a83353b9352e0874d",
+    "quality-report.json": "7415d7edb7e280fb55079a50fe0e70839240c98ff6696d0b96244733c15f4aac",
+    "openapi.json": "1bceb04d9f1d0360b5ab676e1e2f66e7e713088309b076edce0dfa808efc2da7",
+    "data-model.json": "3a8a3d4f970dd56a8e416eb6971d08b21ae747ed60fb202b300cf7a26389ba2a",
+    "screens.json": "00ba83d0d028437237558aae60edfee47737250a7ae5dbf7a30f81455c65c39c",
+    "events.json": "33b2d05ca900727365fea946c17dbc103043b178be0261bb85037914ce278cab",
+    "permissions.json": "e8324d8e9f1fa9023a5df28ede0511eefef13b1fe162d7be5f6f07c45d9c6345"
+  },
+  "approval_recorded": false,
+  "new_model_calls": 0,
+  "limitations": [
+    "Partial preparation: missing metadata and operational details remain explicitly unfilled."
+  ]
+}

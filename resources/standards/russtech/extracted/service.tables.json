@@ -1,0 +1,845 @@
+[
+  {
+    "page": 1,
+    "tables": [
+      [
+        [
+          "Название",
+          "Описание"
+        ],
+        [
+          "Тип приложения",
+          "Пример: ASP.NET Core REST API"
+        ],
+        [
+          "Прикладное ПО / Frameworks",
+          "Пример: .NET 7.0"
+        ],
+        [
+          "Системное ПО",
+          "Пример: Linux"
+        ],
+        [
+          "Swagger",
+          "ссылка если применимо"
+        ],
+        [
+          "Архитектура",
+          "Пример: микросервисная или сервисная или иное"
+        ]
+      ],
+      [
+        [
+          "",
+          "Production",
+          "Stage",
+          "Test"
+        ],
+        [
+          "Сервис",
+          "Например",
+          "",
+          ""
+        ],
+        [
+          "Логи",
+          "Например",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          null,
+          null
+        ]
+      ]
+    ]
+  },
+  {
+    "page": 2,
+    "tables": []
+  },
+  {
+    "page": 3,
+    "tables": [
+      [
+        [
+          "Имя переменной",
+          "Prod",
+          "Stage",
+          "Test",
+          "Описание"
+        ],
+        [
+          "ПРИМЕР: Connection string",
+          "",
+          "",
+          "",
+          "Строка соединения с базой данных"
+        ],
+        [
+          "var2",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "varN",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ]
+    ]
+  },
+  {
+    "page": 4,
+    "tables": [
+      [
+        [
+          "Name",
+          "Description",
+          "Type",
+          "Key and additional info"
+        ],
+        [
+          "Linux: Version of Zabbix\nagent running",
+          "",
+          "Zabbix\nagent",
+          "agent.version\nPreprocessing\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Linux: Host name of Zabbix\nagent running",
+          "",
+          "Zabbix\nagent",
+          "agent.hostname\nPreprocessing\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Linux: Zabbix agent ping",
+          "The agent always returns 1 for this item. It could be used in combination with nodata()\nfor availability check.",
+          "Zabbix\nagent",
+          "agent.ping"
+        ],
+        [
+          "Linux: Zabbix agent\navailability",
+          "Monitoring the availability status of the agent.",
+          "Zabbix\ninternal",
+          "zabbix[host,agent,available]"
+        ],
+        [
+          "Linux: Number of CPUs",
+          "",
+          "Zabbix\nagent",
+          "system.cpu.num\nPreprocessing\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Linux: Load average (1m\navg)",
+          "",
+          "Zabbix\nagent",
+          "system.cpu.load[all,avg1]"
+        ],
+        [
+          "Linux: Load average (5m\navg)",
+          "",
+          "Zabbix\nagent",
+          "system.cpu.load[all,avg5]"
+        ],
+        [
+          "Linux: Load average (15m\navg)",
+          "",
+          "Zabbix\nagent",
+          "system.cpu.load[all,avg15]"
+        ],
+        [
+          "Linux: CPU utilization",
+          "The CPU utilization expressed in %.",
+          "Depend\nent item",
+          "system.cpu.util\nPreprocessing\nJavaScript: //Calculate\nutilization<br>return (100 -\nvalue)"
+        ],
+        [
+          "Linux: CPU idle time",
+          "The time the CPU has spent doing nothing.",
+          "Zabbix\nagent",
+          "system.cpu.util[,idle]"
+        ],
+        [
+          "Linux: CPU system time",
+          "The time the CPU has spent running the kernel and its processes.",
+          "Zabbix\nagent",
+          "system.cpu.util[,system]"
+        ],
+        [
+          "Linux: CPU user time",
+          "The time the CPU has spent running users' processes that are not niced.",
+          "Zabbix\nagent",
+          "system.cpu.util[,user]"
+        ],
+        [
+          "Linux: CPU nice time",
+          "The time the CPU has spent running users' processes that have been niced.",
+          "Zabbix\nagent",
+          "system.cpu.util[,nice]"
+        ]
+      ]
+    ]
+  },
+  {
+    "page": 5,
+    "tables": [
+      [
+        [
+          "Linux: CPU iowait time",
+          "The amount of time the CPU has been waiting for I/O to complete.",
+          "Zabbix\nagent",
+          "system.cpu.util[,iowait]"
+        ],
+        [
+          "Linux: CPU steal time",
+          "The amount of \"stolen\" CPU from this virtual machine by the hypervisor for other tasks,\nsuch as running another virtual machine.",
+          "Zabbix\nagent",
+          "system.cpu.util[,steal]"
+        ],
+        [
+          "Linux: CPU interrupt time",
+          "The amount of time the CPU has been servicing hardware interrupts.",
+          "Zabbix\nagent",
+          "system.cpu.util[,interrupt]"
+        ],
+        [
+          "Linux: CPU softirq time",
+          "The amount of time the CPU has been servicing software interrupts.",
+          "Zabbix\nagent",
+          "system.cpu.util[,softirq]"
+        ],
+        [
+          "Linux: CPU guest time",
+          "Guest time - the time spent on running a virtual CPU for a guest operating system.",
+          "Zabbix\nagent",
+          "system.cpu.util[,guest]"
+        ],
+        [
+          "Linux: CPU guest nice time",
+          "The time spent on running a niced guest (a virtual CPU for guest operating systems\nunder the control of the Linux kernel).",
+          "Zabbix\nagent",
+          "system.cpu.util[,guest_nice]"
+        ],
+        [
+          "Linux: Context switches per\nsecond",
+          "",
+          "Zabbix\nagent",
+          "system.cpu.switches\nPreprocessing\nChange per second"
+        ],
+        [
+          "Linux: Interrupts per second",
+          "",
+          "Zabbix\nagent",
+          "system.cpu.intr\nPreprocessing\nChange per second"
+        ],
+        [
+          "Linux: Get filesystems",
+          "The vfs.fs.get key acquires raw information set about the file systems. Later to be\nextracted by preprocessing in dependent items.",
+          "Zabbix\nagent",
+          "vfs.fs.get"
+        ],
+        [
+          "Linux: Memory utilization",
+          "The percentage of used memory is calculated as 100-pavailable.",
+          "Depend\nent item",
+          "vm.memory.utilization\nPreprocessing\nJavaScript: return (100-value);"
+        ],
+        [
+          "Linux: Available memory in\n%",
+          "The available memory as percentage of the total. See also Appendixes in Zabbix\nDocumentation about parameters of the vm.memory.size item.",
+          "Zabbix\nagent",
+          "vm.memory.size[pavailable]"
+        ],
+        [
+          "Linux: Total memory",
+          "The total memory expressed in bytes.",
+          "Zabbix\nagent",
+          "vm.memory.size[total]"
+        ],
+        [
+          "Linux: Available memory",
+          "The available memory:\n- in Linux - available = free + buffers + cache;\n- on other platforms calculation may vary.\nSee also Appendixes in Zabbix Documentation about parameters of the vm.memory.\nsize item.",
+          "Zabbix\nagent",
+          "vm.memory.size[available]"
+        ],
+        [
+          "Linux: Total swap space",
+          "The total space of the swap volume/file expressed in bytes.",
+          "Zabbix\nagent",
+          "system.swap.size[,total]"
+        ],
+        [
+          "Linux: Free swap space",
+          "The free space of the swap volume/file expressed in bytes.",
+          "Zabbix\nagent",
+          "system.swap.size[,free]"
+        ],
+        [
+          "Linux: Free swap space in %",
+          "The free space of the swap volume/file expressed in %.",
+          "Zabbix\nagent",
+          "system.swap.size[,pfree]"
+        ],
+        [
+          "Linux: System uptime",
+          "The system uptime expressed in the following format: \"N days, hh:mm:ss\".",
+          "Zabbix\nagent",
+          "system.uptime"
+        ],
+        [
+          "Linux: System boot time",
+          "",
+          "Zabbix\nagent",
+          "system.boottime\nPreprocessing\nDiscard unchanged with heartbeat: 1h"
+        ],
+        [
+          "Linux: System local time",
+          "The local system time of the host.",
+          "Zabbix\nagent",
+          "system.localtime"
+        ],
+        [
+          "Linux: System name",
+          "The host name of the system.",
+          "Zabbix\nagent",
+          "system.hostname\nPreprocessing\nDiscard unchanged with heartbeat: 12h"
+        ]
+      ]
+    ]
+  },
+  {
+    "page": 6,
+    "tables": [
+      [
+        [
+          "Linux: System description",
+          "The information as normally returned by uname -a.",
+          "Zabbix\nagent",
+          "system.uname\nPreprocessing\nDiscard unchanged with heartbeat: 12h"
+        ],
+        [
+          "Linux: Number of logged in\nusers",
+          "The number of users who are currently logged in.",
+          "Zabbix\nagent",
+          "system.users.num"
+        ],
+        [
+          "Linux: Maximum number of\nopen file descriptors",
+          "It could be increased by using sysctl utility or modifying the file /etc/sysctl.\nconf.",
+          "Zabbix\nagent",
+          "kernel.maxfiles\nPreprocessing\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Linux: Maximum number of\nprocesses",
+          "It could be increased by using sysctl utility or modifying the file /etc/sysctl.\nconf.",
+          "Zabbix\nagent",
+          "kernel.maxproc\nPreprocessing\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Linux: Number of processes",
+          "",
+          "Zabbix\nagent",
+          "proc.num"
+        ],
+        [
+          "Linux: Number of running\nprocesses",
+          "",
+          "Zabbix\nagent",
+          "proc.num[,,run]"
+        ],
+        [
+          "Linux: Checksum of /etc\n/passwd",
+          "",
+          "Zabbix\nagent",
+          "vfs.file.cksum[/etc/passwd,sha256]\nPreprocessing\nDiscard unchanged with heartbeat: 1h"
+        ],
+        [
+          "Linux: Operating system",
+          "",
+          "Zabbix\nagent",
+          "system.sw.os\nPreprocessing\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Linux: Operating system\narchitecture",
+          "The architecture of the operating system.",
+          "Zabbix\nagent",
+          "system.sw.arch\nPreprocessing\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Linux: Number of installed\npackages",
+          "",
+          "Zabbix\nagent",
+          "system.sw.packages.get\nPreprocessing\nJSON Path: $.length()\nDiscard unchanged with heartbeat: 12h"
+        ]
+      ],
+      [
+        [
+          "Name",
+          "Description",
+          "Expression",
+          "Severity",
+          "Dependencies\nand\nadditional\ninfo"
+        ],
+        [
+          "Linux: Zabbix\nagent is not\navailable",
+          "For passive only agents, host\navailability is used with {$AGENT.\nTIMEOUT} as time threshold.",
+          "max(/Linux by Zabbix agent/zabbix[host,agent,available],\n{$AGENT.TIMEOUT})=0",
+          "Average",
+          "Manual close:\nYes"
+        ],
+        [
+          "Linux: Load\naverage is too\nhigh",
+          "The load average per CPU is too high.\nThe system may be slow to respond.",
+          "min(/Linux by Zabbix agent/system.cpu.load[all,avg1],5m)/last\n(/Linux by Zabbix agent/system.cpu.num)>{$LOAD_AVG_PER_CPU.\nMAX.WARN} and last(/Linux by Zabbix agent/system.cpu.load\n[all,avg5])>0 and last(/Linux by Zabbix agent/system.cpu.load\n[all,avg15])>0",
+          "Average",
+          ""
+        ],
+        [
+          "Linux: High\nCPU\nutilization",
+          "The CPU utilization is too high. The\nsystem might be slow to respond.",
+          "min(/Linux by Zabbix agent/system.cpu.util,5m)>{$CPU.UTIL.\nCRIT}",
+          "Warning",
+          "Depends on:\nLinux:\nLoad\naverage is\ntoo high"
+        ]
+      ]
+    ]
+  },
+  {
+    "page": 7,
+    "tables": [
+      [
+        [
+          "Linux: High\nmemory\nutilization",
+          "The system is running out of free\nmemory.",
+          "min(/Linux by Zabbix agent/vm.memory.utilization,5m)>\n{$MEMORY.UTIL.MAX}",
+          "Average",
+          "Depends on:\nLinux:\nLack of\navailable\nmemory"
+        ],
+        [
+          "Linux: Lack\nof available\nmemory",
+          "",
+          "max(/Linux by Zabbix agent/vm.memory.size[available],5m)<\n{$MEMORY.AVAILABLE.MIN} and last(/Linux by Zabbix agent/vm.\nmemory.size[total])>0",
+          "Average",
+          ""
+        ],
+        [
+          "Linux: High\nswap space\nusage",
+          "If there is no swap configured, this\ntrigger is ignored.",
+          "max(/Linux by Zabbix agent/system.swap.size[,pfree],5m)<\n{$SWAP.PFREE.MIN.WARN} and last(/Linux by Zabbix agent\n/system.swap.size[,total])>0",
+          "Warning",
+          "Depends on:\nLinux:\nLack of\navailable\nmemory\nLinux:\nHigh\nmemory\nutilization"
+        ],
+        [
+          "Linux:\n{HOST.\nNAME} has\nbeen restarted",
+          "The host uptime is less than 10 minutes.",
+          "last(/Linux by Zabbix agent/system.uptime)<10m",
+          "Warning",
+          "Manual close:\nYes"
+        ],
+        [
+          "Linux: System\ntime is out of\nsync",
+          "The host's system time is different from\nZabbix server time.",
+          "fuzzytime(/Linux by Zabbix agent/system.localtime,{$SYSTEM.\nFUZZYTIME.MAX})=0",
+          "Warning",
+          "Manual close:\nYes"
+        ],
+        [
+          "Linux: System\nname has\nchanged",
+          "The name of the system has changed.\nAcknowledge to close the problem\nmanually.",
+          "change(/Linux by Zabbix agent/system.hostname) and length\n(last(/Linux by Zabbix agent/system.hostname))>0",
+          "Info",
+          "Manual close:\nYes"
+        ],
+        [
+          "Linux:\nConfigured\nmax number\nof open\nfiledescriptors\nis too low",
+          "",
+          "last(/Linux by Zabbix agent/kernel.maxfiles)<{$KERNEL.\nMAXFILES.MIN}",
+          "Info",
+          ""
+        ],
+        [
+          "Linux:\nConfigured\nmax number\nof processes is\ntoo low",
+          "",
+          "last(/Linux by Zabbix agent/kernel.maxproc)<{$KERNEL.MAXPROC.\nMIN}",
+          "Info",
+          "Depends on:\nLinux:\nGetting\ncloser to\nprocess\nlimit"
+        ],
+        [
+          "Linux: Getting\ncloser to\nprocess limit",
+          "",
+          "last(/Linux by Zabbix agent/proc.num)/last(/Linux by Zabbix\nagent/kernel.maxproc)*100>80",
+          "Warning",
+          ""
+        ],
+        [
+          "Linux: /etc\n/passwd has\nbeen changed",
+          "",
+          "last(/Linux by Zabbix agent/vfs.file.cksum[/etc/passwd,\nsha256],#1)<>last(/Linux by Zabbix agent/vfs.file.cksum[/etc\n/passwd,sha256],#2)",
+          "Info",
+          "Manual close:\nYes\nDepends on:\nLinux:\nSystem\nname has\nchanged\nLinux:\nOperating\nsystem\ndescription\nhas changed"
+        ],
+        [
+          "Linux:\nOperating\nsystem\ndescription\nhas changed",
+          "The description of the operating system\nhas changed. Possible reasons are that\nthe system has been updated or\nreplaced. Acknowledge to close the\nproblem manually.",
+          "change(/Linux by Zabbix agent/system.sw.os) and length(last(\n/Linux by Zabbix agent/system.sw.os))>0",
+          "Info",
+          "Manual close:\nYes\nDepends on:\nLinux:\nSystem\nname has\nchanged"
+        ]
+      ]
+    ]
+  },
+  {
+    "page": 8,
+    "tables": [
+      [
+        [
+          "Linux:\nNumber of\ninstalled\npackages has\nbeen changed",
+          "",
+          "change(/Linux by Zabbix agent/system.sw.packages.get)<>0",
+          "Warning",
+          "Manual close:\nYes"
+        ]
+      ],
+      [
+        [
+          "Name",
+          "Description",
+          "Type",
+          "Key and additional info"
+        ],
+        [
+          "Docker: Ping",
+          "",
+          "Zabbix\nagent",
+          "docker.ping\nPreprocessing\nDiscard unchanged with heartbeat: 10m"
+        ],
+        [
+          "Docker: Get info",
+          "",
+          "Zabbix\nagent",
+          "docker.info"
+        ],
+        [
+          "Docker: Get containers",
+          "",
+          "Zabbix\nagent",
+          "docker.containers"
+        ],
+        [
+          "Docker: Get images",
+          "",
+          "Zabbix\nagent",
+          "docker.images"
+        ],
+        [
+          "Docker: Get data_usage",
+          "",
+          "Zabbix\nagent",
+          "docker.data_usage"
+        ],
+        [
+          "Docker: Containers total",
+          "Total number of containers on this host.",
+          "Dependent\nitem",
+          "docker.containers.total\nPreprocessing\nJSON Path: $.Containers"
+        ],
+        [
+          "Docker: Containers running",
+          "Total number of containers running on this host.",
+          "Dependent\nitem",
+          "docker.containers.running\nPreprocessing\nJSON Path: $.ContainersRunning"
+        ],
+        [
+          "Docker: Containers stopped",
+          "Total number of containers stopped on this host.",
+          "Dependent\nitem",
+          "docker.containers.stopped\nPreprocessing\nJSON Path: $.ContainersStopped"
+        ],
+        [
+          "Docker: Containers paused",
+          "Total number of containers paused on this host.",
+          "Dependent\nitem",
+          "docker.containers.paused\nPreprocessing\nJSON Path: $.ContainersPaused"
+        ],
+        [
+          "Docker: Images total",
+          "Number of images with intermediate image layers.",
+          "Dependent\nitem",
+          "docker.images.total\nPreprocessing\nJSON Path: $.Images"
+        ],
+        [
+          "Docker: Storage driver",
+          "Docker storage driver.\nhttps://docs.docker.com/storage/storagedriver/",
+          "Dependent\nitem",
+          "docker.driver\nPreprocessing\nJSON Path: $.Driver\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: Memory limit\nenabled",
+          "",
+          "Dependent\nitem",
+          "docker.mem_limit.enabled\nPreprocessing\nJSON Path: $.MemoryLimit\nBoolean to decimal\nDiscard unchanged with heartbeat: 1d"
+        ]
+      ]
+    ]
+  },
+  {
+    "page": 9,
+    "tables": [
+      [
+        [
+          "Docker: Swap limit enabled",
+          "",
+          "Dependent\nitem",
+          "docker.swap_limit.enabled\nPreprocessing\nJSON Path: $.SwapLimit\nBoolean to decimal\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: Kernel memory\nenabled",
+          "",
+          "Dependent\nitem",
+          "docker.kernel_mem.enabled\nPreprocessing\nJSON Path: $.KernelMemory\nBoolean to decimal\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: Kernel memory TCP\nenabled",
+          "",
+          "Dependent\nitem",
+          "docker.kernel_mem_tcp.enabled\nPreprocessing\nJSON Path: $.KernelMemoryTCP\nBoolean to decimal\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: CPU CFS Period\nenabled",
+          "https://docs.docker.com/config/containers/resource_constraints/#configure-the-\ndefault-cfs-scheduler",
+          "Dependent\nitem",
+          "docker.cpu_cfs_period.enabled\nPreprocessing\nJSON Path: $.CpuCfsPeriod\nBoolean to decimal\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: CPU CFS Quota\nenabled",
+          "https://docs.docker.com/config/containers/resource_constraints/#configure-the-\ndefault-cfs-scheduler",
+          "Dependent\nitem",
+          "docker.cpu_cfs_quota.enabled\nPreprocessing\nJSON Path: $.CpuCfsQuota\nBoolean to decimal\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: CPU Shares enabled",
+          "https://docs.docker.com/config/containers/resource_constraints/#configure-the-\ndefault-cfs-scheduler",
+          "Dependent\nitem",
+          "docker.cpu_shares.enabled\nPreprocessing\nJSON Path: $.CPUShares\nBoolean to decimal\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: CPU Set enabled",
+          "https://docs.docker.com/config/containers/resource_constraints/#configure-the-\ndefault-cfs-scheduler",
+          "Dependent\nitem",
+          "docker.cpu_set.enabled\nPreprocessing\nJSON Path: $.CPUSet\nBoolean to decimal\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: Pids limit enabled",
+          "",
+          "Dependent\nitem",
+          "docker.pids_limit.enabled\nPreprocessing\nJSON Path: $.PidsLimit\nBoolean to decimal\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: IPv4 Forwarding\nenabled",
+          "",
+          "Dependent\nitem",
+          "docker.ipv4_forwarding.enabled\nPreprocessing\nJSON Path: $.IPv4Forwarding\nBoolean to decimal\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: Debug enabled",
+          "",
+          "Dependent\nitem",
+          "docker.debug.enabled\nPreprocessing\nJSON Path: $.Debug\nBoolean to decimal\nDiscard unchanged with heartbeat: 1d"
+        ]
+      ]
+    ]
+  },
+  {
+    "page": 10,
+    "tables": [
+      [
+        [
+          "Docker: Nfd",
+          "Number of used File Descriptors.",
+          "Dependent\nitem",
+          "docker.nfd\nPreprocessing\nJSON Path: $.NFd"
+        ],
+        [
+          "Docker: OomKill disabled",
+          "",
+          "Dependent\nitem",
+          "docker.oomkill.disabled\nPreprocessing\nJSON Path: $.OomKillDisable\nBoolean to decimal\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: Goroutines",
+          "Number of goroutines.",
+          "Dependent\nitem",
+          "docker.goroutines\nPreprocessing\nJSON Path: $.NGoroutines"
+        ],
+        [
+          "Docker: Logging driver",
+          "",
+          "Dependent\nitem",
+          "docker.logging_driver\nPreprocessing\nJSON Path: $.LoggingDriver\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: Cgroup driver",
+          "",
+          "Dependent\nitem",
+          "docker.cgroup_driver\nPreprocessing\nJSON Path: $.CgroupDriver\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: NEvents listener",
+          "",
+          "Dependent\nitem",
+          "docker.nevents_listener\nPreprocessing\nJSON Path: $.NEventsListener"
+        ],
+        [
+          "Docker: Kernel version",
+          "",
+          "Dependent\nitem",
+          "docker.kernel_version\nPreprocessing\nJSON Path: $.KernelVersion\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: Operating system",
+          "",
+          "Dependent\nitem",
+          "docker.operating_system\nPreprocessing\nJSON Path: $.OperatingSystem\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: OS type",
+          "",
+          "Dependent\nitem",
+          "docker.os_type\nPreprocessing\nJSON Path: $.OSType\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: Architecture",
+          "",
+          "Dependent\nitem",
+          "docker.architecture\nPreprocessing\nJSON Path: $.Architecture\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: NCPU",
+          "",
+          "Dependent\nitem",
+          "docker.ncpu\nPreprocessing\nJSON Path: $.NCPU"
+        ],
+        [
+          "Docker: Memory total",
+          "",
+          "Dependent\nitem",
+          "docker.mem.total\nPreprocessing\nJSON Path: $.MemTotal"
+        ]
+      ]
+    ]
+  },
+  {
+    "page": 11,
+    "tables": [
+      [
+        [
+          "Docker: Docker root dir",
+          "",
+          "Dependent\nitem",
+          "docker.root_dir\nPreprocessing\nJSON Path: $.DockerRootDir\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: Name",
+          "",
+          "Dependent\nitem",
+          "docker.name\nPreprocessing\nJSON Path: $.Name"
+        ],
+        [
+          "Docker: Server version",
+          "",
+          "Dependent\nitem",
+          "docker.server_version\nPreprocessing\nJSON Path: $.ServerVersion\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: Default runtime",
+          "",
+          "Dependent\nitem",
+          "docker.default_runtime\nPreprocessing\nJSON Path: $.DefaultRuntime\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: Live restore enabled",
+          "",
+          "Dependent\nitem",
+          "docker.live_restore.enabled\nPreprocessing\nJSON Path: $.LiveRestoreEnabled\nBoolean to decimal\nDiscard unchanged with heartbeat: 1d"
+        ],
+        [
+          "Docker: Layers size",
+          "",
+          "Dependent\nitem",
+          "docker.layers_size\nPreprocessing\nJSON Path: $.LayersSize"
+        ],
+        [
+          "Docker: Images size",
+          "",
+          "Dependent\nitem",
+          "docker.images_size\nPreprocessing\nJSON Path: $.Images[*].Size.sum()"
+        ],
+        [
+          "Docker: Containers size",
+          "",
+          "Dependent\nitem",
+          "docker.containers_size\nPreprocessing\nJSON Path: $.Containers[*].SizeRw.\nsum()"
+        ],
+        [
+          "Docker: Volumes size",
+          "",
+          "Dependent\nitem",
+          "docker.volumes_size\nPreprocessing\nJSON Path: $.Volumes[*].UsageData.\nSize.sum()"
+        ],
+        [
+          "Docker: Images available",
+          "Number of top-level images.",
+          "Dependent\nitem",
+          "docker.images.top_level\nPreprocessing\nJSON Path: $.length()"
+        ]
+      ],
+      [
+        [
+          "Name",
+          "Description",
+          "Expression",
+          "Severity",
+          "Dependencies\nand\nadditional\ninfo"
+        ],
+        [
+          "Docker:\nService is\ndown",
+          "",
+          "last(/Docker by Zabbix agent 2/docker.ping)=0",
+          "Average",
+          "Manual close:\nYes"
+        ]
+      ]
+    ]
+  },
+  {
+    "page": 12,
+    "tables": [
+      [
+        [
+          "Docker:\nFailed to\nfetch info\ndata",
+          "Zabbix has not received\ndata for items for the last 30\nminutes.",
+          "nodata(/Docker by Zabbix agent 2/docker.name,30m)=1",
+          "Warning",
+          "Manual close:\nYes\nDepends on:\nDocker:\nService is\ndown"
+        ],
+        [
+          "Docker:\nVersion\nhas\nchanged",
+          "Docker version has\nchanged. Acknowledge to\nclose the problem manually.",
+          "last(/Docker by Zabbix agent 2/docker.server_version,#1)<>last(\n/Docker by Zabbix agent 2/docker.server_version,#2) and length(last(\n/Docker by Zabbix agent 2/docker.server_version))>0",
+          "Info",
+          "Manual close:\nYes"
+        ]
+      ]
+    ]
+  },
+  {
+    "page": 13,
+    "tables": []
+  }
+]

@@ -42,23 +42,42 @@ def analysis_prompt(requirements):
             + "\nВХОДНЫЕ ДАННЫЕ:\n" + json.dumps({"requirements": requirements}, ensure_ascii=False))
 
 
-def design_prompt(requirements, analysis, answers):
-    return ("Составь проект системного анализа и план приемочного тестирования на основании входа. "
-            "Сохрани все FR-ID без переименования. Покрой каждый FR минимум одним сценарием; добавь отрицательные сценарии. "
-            "Ответы заказчика уточняют требования; если ответа нет, используй явно указанное default_assumption, "
-            "отрази неподтвержденность в limitations. Не создавай новые FR. "
-            "Целевой стек генерируемого впоследствии приложения: Angular 20.1.6 + PWA для мобильного интерфейса, "
-            "ASP.NET Core / .NET 10 / C# 14, PostgreSQL 17.9, PostGIS только при необходимости. "
-            "Kafka только при обоснованной необходимости; внешние интеграции через адаптеры/mock. "
-            "Сама эта версия пайплайна код приложения не генерирует. "
-            "API описывай как проект контрактов, не называй его готовой OpenAPI-спецификацией. "
-            "Укажи права, ограничения входов, ошибки. Неприменимые разделы оставляй пустыми и объясняй в limitations.\n"
-            "Структура JSON:\n" + json.dumps(DESIGN_SCHEMA, ensure_ascii=False)
-            + "\nВХОДНЫЕ ДАННЫЕ:\n" + json.dumps({"requirements": requirements, "analysis": analysis, "answers": answers}, ensure_ascii=False))
+def design_prompt(requirements, analysis, answers, version="2.0"):
+    if version == "1.0":
+        return ("Составь проект системного анализа; сохрани FR-ID и покрой каждый FR сценарием. "
+                "Ответы пользователя обязательны; численные проектные решения — допущения. Верни один JSON. "
+                "Целевой стек Angular20.1.6/PWA/Angular Material, ASP.NET Core .NET10 C#14, PostgreSQL17.9, "
+                "PostGIS при геоданных; реальные платежи и тесты приложения не выполняются.\n" +
+                json.dumps(DESIGN_SCHEMA, ensure_ascii=False) + "\nВХОД:\n" +
+                json.dumps({"requirements":requirements,"analysis":analysis,"answers":answers},ensure_ascii=False))
+    from .specifications import contract_schema
+    return ("Составь исполнимую спецификацию версии 2.0 по требованиям, анализу и ответам. "
+            "Сохрани FR-ID, покрой каждый FR приёмочными сценариями. Верни один JSON. "
+            "JSON Schema ниже задаёт ОБЯЗАТЕЛЬНУЮ структуру. fields.schema, schemas, параметры, тела, ответы и события — "
+            "JSON Schema 2020-12 с type, required, ограничениями и локальными $ref вида #/components/schemas/Name. "
+            "Имена data_model.name становятся components.schemas; schemas содержит дополнительные DTO без коллизий имён. "
+            "roles.permissions.operation_id и api.roles должны согласовываться. У защищённых API нужны 401/403. "
+            "Все path-параметры объяви required=true. Объяви связи, PK, индексы и ключи дедупликации событий. "
+            "Для экранов нужны loading/error/empty/forbidden/ready, действия связываются с operation_id. "
+            "Не добавляй предметные требования: численные пороги и алгоритмы помести в assumptions; неясности — open_questions. "
+            "Angular 20.1.6/PWA, Angular Material совместимой версии, ASP.NET Core/.NET 10/C#14, PostgreSQL17.9, "
+            "PostGIS при геоданных. Kafka только с обоснованием. Реальные проверки приложения не выполняются. "
+            "Неприменимые разделы пустые с объяснением в limitations.\nJSON Schema:\n" +
+            json.dumps(contract_schema(), ensure_ascii=False, separators=(",", ":")) +
+            "\nВХОДНЫЕ ДАННЫЕ:\n" + json.dumps({"requirements": requirements, "analysis": analysis, "answers": answers}, ensure_ascii=False))
 
 
 def parse_json(content):
     text = content.strip()
+    # The organizer gateway includes reasoning up to this closing marker in
+    # message.content, sometimes with the final text still JSON-string escaped.
+    if "</think>" in text and not text.startswith(("{", "```", r'{"')):
+        text = text.split("</think>", 1)[1].strip()
+    if text.startswith((r"\n", r"\r", r'{\"')):
+        try:
+            text = json.loads('"' + text + '"').strip()
+        except json.JSONDecodeError:
+            pass  # Keep malformed data for the normal strict JSON check below.
     if text.startswith("```"):
         lines = text.splitlines()
         if lines[-1].strip() == "```":
@@ -124,6 +143,11 @@ def validate_analysis(data, requirements):
 
 
 def validate_design(data, analysis):
+    if isinstance(data, dict) and data.get("schema_version") == "2.0":
+        from .specifications import validate_contract
+        return validate_contract(data, analysis)
+    if isinstance(data, dict) and data.get("schema_version", "1") not in ("1", "1.0"):
+        return ["Unsupported design schema_version"]
     issues = []
     _shape(data, DESIGN_SCHEMA, "design", issues)
     if issues:

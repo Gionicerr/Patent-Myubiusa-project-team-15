@@ -1,0 +1,371 @@
+[
+  {
+    "id": "driver-map",
+    "route": "/driver",
+    "name": "Мобильная PWA: карта, позиция, объект, сессия, предупреждение, оплата",
+    "roles": [
+      "driver"
+    ],
+    "requirement_ids": [
+      "FR-001",
+      "FR-003",
+      "FR-004",
+      "FR-007",
+      "FR-008",
+      "FR-010",
+      "FR-011",
+      "FR-012",
+      "FR-015"
+    ],
+    "actions": [
+      {
+        "id": "listVehicles",
+        "label": "Свои автомобили водителя; все автомобили администратора",
+        "operation_id": "listVehicles"
+      },
+      {
+        "id": "ingestPosition",
+        "label": "Координаты или явная ошибка; сопоставление с устойчивостью",
+        "operation_id": "ingestPosition"
+      },
+      {
+        "id": "getMatch",
+        "label": "Текущий результат определения без изменения сессии",
+        "operation_id": "getMatch"
+      },
+      {
+        "id": "getObject",
+        "label": "Подробности объекта; не обещает тарифный номер или полигональные границы",
+        "operation_id": "getObject"
+      },
+      {
+        "id": "listNotifications",
+        "label": "Предупреждение за 10 минут и необходимость проверки оплаты",
+        "operation_id": "listNotifications"
+      },
+      {
+        "id": "listVehicleSessions",
+        "label": "История и активная сессия своего автомобиля",
+        "operation_id": "listVehicleSessions"
+      },
+      {
+        "id": "createSession",
+        "label": "Явный запуск сессии без подтверждения оплаты",
+        "operation_id": "createSession"
+      },
+      {
+        "id": "getPaymentLink",
+        "label": "Демо-адаптер выдаёт разрешённую официальную ссылку либо unavailable, без оплаты",
+        "operation_id": "getPaymentLink"
+      }
+    ],
+    "display_fields": [
+      {
+        "entity": "ParkingObject",
+        "fields": [
+          "externalZoneId",
+          "displayName",
+          "geometry",
+          "geometryGeoJson",
+          "price",
+          "priceDescription",
+          "minTime",
+          "timeStep",
+          "tariff",
+          "geometryState"
+        ]
+      },
+      {
+        "entity": "ParkingSession",
+        "fields": [
+          "status",
+          "endAt",
+          "paymentConfirmed"
+        ]
+      }
+    ],
+    "states": {
+      "loading": "Индикатор загрузки; действия изменения состояния отключены.",
+      "error": "Сообщение с кодом; техническая ошибка не означает отсутствие зоны или оплату.",
+      "empty": "Нет данных или зоны; сессия сохраняется; бесплатность не утверждается.",
+      "forbidden": "Доступ запрещён; чужие данные не показываются.",
+      "ready": "Данные показаны с временем обновления; устаревшее состояние помечено."
+    }
+  },
+  {
+    "id": "driver-session",
+    "route": "/driver/sessions/:id",
+    "name": "Состояние, подтверждение сессии и переход к оплате",
+    "roles": [
+      "driver"
+    ],
+    "requirement_ids": [
+      "FR-002",
+      "FR-006",
+      "FR-011",
+      "FR-012"
+    ],
+    "actions": [
+      {
+        "id": "getSession",
+        "label": "Состояние и время окончания сессии своего автомобиля",
+        "operation_id": "getSession"
+      },
+      {
+        "id": "confirmSession",
+        "label": "Явное подтверждение времени без автоматической смены объекта или оплаты",
+        "operation_id": "confirmSession"
+      },
+      {
+        "id": "getPaymentLink",
+        "label": "Демо-адаптер выдаёт разрешённую официальную ссылку либо unavailable, без оплаты",
+        "operation_id": "getPaymentLink"
+      }
+    ],
+    "display_fields": [
+      {
+        "entity": "ParkingSession",
+        "fields": [
+          "startedAt",
+          "endAt",
+          "status",
+          "revision",
+          "paymentConfirmed"
+        ]
+      }
+    ],
+    "states": {
+      "loading": "Индикатор загрузки; действия изменения состояния отключены.",
+      "error": "Сообщение с кодом; техническая ошибка не означает отсутствие зоны или оплату.",
+      "empty": "Нет данных или зоны; сессия сохраняется; бесплатность не утверждается.",
+      "forbidden": "Доступ запрещён; чужие данные не показываются.",
+      "ready": "Данные показаны с временем обновления; устаревшее состояние помечено."
+    }
+  },
+  {
+    "id": "driver-history",
+    "route": "/driver/history",
+    "name": "Сессии и маршруты водителя",
+    "roles": [
+      "driver"
+    ],
+    "requirement_ids": [
+      "FR-009",
+      "FR-013"
+    ],
+    "actions": [
+      {
+        "id": "listVehicleSessions",
+        "label": "История и активная сессия своего автомобиля",
+        "operation_id": "listVehicleSessions"
+      },
+      {
+        "id": "listVehicleRoutes",
+        "label": "Маршруты своего автомобиля",
+        "operation_id": "listVehicleRoutes"
+      },
+      {
+        "id": "listRoutePositions",
+        "label": "Точки маршрута своего автомобиля в observedAt порядке",
+        "operation_id": "listRoutePositions"
+      }
+    ],
+    "display_fields": [
+      {
+        "entity": "Route",
+        "fields": [
+          "startedAt",
+          "endedAt"
+        ]
+      },
+      {
+        "entity": "PositionObservation",
+        "fields": [
+          "longitude",
+          "latitude",
+          "observedAt"
+        ]
+      },
+      {
+        "entity": "ParkingSession",
+        "fields": [
+          "startedAt",
+          "endAt",
+          "status"
+        ]
+      }
+    ],
+    "states": {
+      "loading": "Индикатор загрузки; действия изменения состояния отключены.",
+      "error": "Сообщение с кодом; техническая ошибка не означает отсутствие зоны или оплату.",
+      "empty": "Нет данных или зоны; сессия сохраняется; бесплатность не утверждается.",
+      "forbidden": "Доступ запрещён; чужие данные не показываются.",
+      "ready": "Данные показаны с временем обновления; устаревшее состояние помечено."
+    }
+  },
+  {
+    "id": "admin-history",
+    "route": "/admin",
+    "name": "Автомобили, объекты, сессии, маршруты, события и история",
+    "roles": [
+      "admin"
+    ],
+    "requirement_ids": [
+      "FR-005",
+      "FR-014"
+    ],
+    "actions": [
+      {
+        "id": "listVehicles",
+        "label": "Свои автомобили водителя; все автомобили администратора",
+        "operation_id": "listVehicles"
+      },
+      {
+        "id": "listObjects",
+        "label": "Объекты источника с исходной геометрией и тарифами",
+        "operation_id": "listObjects"
+      },
+      {
+        "id": "listAllSessions",
+        "label": "Все сессии с фильтрацией",
+        "operation_id": "listAllSessions"
+      },
+      {
+        "id": "listAllRoutes",
+        "label": "Все маршруты с фильтрацией",
+        "operation_id": "listAllRoutes"
+      },
+      {
+        "id": "listRoutePositions",
+        "label": "Точки маршрута своего автомобиля в observedAt порядке",
+        "operation_id": "listRoutePositions"
+      },
+      {
+        "id": "listEvents",
+        "label": "История всех обязательных типов событий",
+        "operation_id": "listEvents"
+      }
+    ],
+    "display_fields": [
+      {
+        "entity": "Vehicle",
+        "fields": [
+          "registration",
+          "driverId"
+        ]
+      },
+      {
+        "entity": "ParkingObject",
+        "fields": [
+          "externalZoneId",
+          "geometryState"
+        ]
+      },
+      {
+        "entity": "ParkingEvent",
+        "fields": [
+          "type",
+          "occurredAt",
+          "vehicleId",
+          "objectId",
+          "previousObjectId",
+          "sessionId"
+        ]
+      },
+      {
+        "entity": "ParkingSession",
+        "fields": [
+          "status",
+          "endAt"
+        ]
+      },
+      {
+        "entity": "Route",
+        "fields": [
+          "vehicleId",
+          "startedAt"
+        ]
+      }
+    ],
+    "states": {
+      "loading": "Индикатор загрузки; действия изменения состояния отключены.",
+      "error": "Сообщение с кодом; техническая ошибка не означает отсутствие зоны или оплату.",
+      "empty": "Нет данных или зоны; сессия сохраняется; бесплатность не утверждается.",
+      "forbidden": "Доступ запрещён; чужие данные не показываются.",
+      "ready": "Данные показаны с временем обновления; устаревшее состояние помечено."
+    }
+  },
+  {
+    "id": "admin-import",
+    "route": "/admin/import",
+    "name": "Импорт, карантин, параметры сопоставления и demo-время",
+    "roles": [
+      "admin"
+    ],
+    "requirement_ids": [
+      "FR-001",
+      "FR-003",
+      "FR-008",
+      "FR-011",
+      "FR-014"
+    ],
+    "actions": [
+      {
+        "id": "importSource",
+        "label": "Идемпотентный импорт и карантин невалидной геометрии без слияния объектов",
+        "operation_id": "importSource"
+      },
+      {
+        "id": "getImport",
+        "label": "Отчёт импорта и проблемных строк",
+        "operation_id": "getImport"
+      },
+      {
+        "id": "getMatchConfiguration",
+        "label": "Просмотр проектных порогов",
+        "operation_id": "getMatchConfiguration"
+      },
+      {
+        "id": "updateMatchConfiguration",
+        "label": "Изменение порогов; exitMeters больше enterMeters",
+        "operation_id": "updateMatchConfiguration"
+      },
+      {
+        "id": "advanceDemoClock",
+        "label": "Управляемое время только в demo-окружении",
+        "operation_id": "advanceDemoClock"
+      }
+    ],
+    "display_fields": [
+      {
+        "entity": "ImportBatch",
+        "fields": [
+          "status",
+          "accepted",
+          "quarantined",
+          "issues"
+        ]
+      },
+      {
+        "entity": "MatchConfiguration",
+        "fields": [
+          "enterMeters",
+          "exitMeters",
+          "confirmSamples",
+          "holdSeconds",
+          "maxAccuracyMeters",
+          "tieMeters",
+          "maxObservationAgeSeconds",
+          "futureToleranceSeconds"
+        ]
+      }
+    ],
+    "states": {
+      "loading": "Индикатор загрузки; действия изменения состояния отключены.",
+      "error": "Сообщение с кодом; техническая ошибка не означает отсутствие зоны или оплату.",
+      "empty": "Нет данных или зоны; сессия сохраняется; бесплатность не утверждается.",
+      "forbidden": "Доступ запрещён; чужие данные не показываются.",
+      "ready": "Данные показаны с временем обновления; устаревшее состояние помечено."
+    }
+  }
+]

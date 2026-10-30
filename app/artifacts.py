@@ -10,8 +10,13 @@ def _bullets(items):
 
 def render_documents(requirements, analysis, design, answers, report, demo=False):
     banner = "> УЧЕБНЫЙ ПРИМЕР: заранее подготовленные данные, Qwen не вызывалась.\n\n" if demo else "> Черновик, сформированный ИИ. Требует содержательной проверки человеком.\n\n"
-    a, d = analysis, design
+    from .specifications import legacy_view, build_openapi
+    if not demo and report.get('origin') == 'reviewed_contract':
+        banner = "> Инженерная ревизия на основании анализа и уточнений пользователя; не результат нового вызова модели.\n\n"
+    from .documentation import document_controls, with_contents
+    a, d = analysis, legacy_view(design)
     parts = [banner + "# " + a["title"], "## Назначение\n" + a["purpose"], "## Цели\n" + _bullets(a["goals"]), "## Границы\n" + _bullets(a["scope"]) + "\n\n" + d["boundaries"], "## Роли и права"]
+    parts.insert(1, document_controls(design.get('schema_version') == '2.0'))
     for role in a["roles"]:
         parts.append("### " + role["name"] + "\n" + _bullets(role["permissions"]))
     parts.append("## Функциональные требования")
@@ -30,7 +35,7 @@ def render_documents(requirements, analysis, design, answers, report, demo=False
     parts.append("## Модель данных")
     for entity in d["data_model"]:
         parts.append("### " + entity["entity"] + "\n" + _bullets(entity["fields"]) + "\n\nСвязи:\n" + _bullets(entity["relations"]))
-    parts.append("## Проект API-контрактов\nЭто описание, а не валидированная OpenAPI-спецификация.")
+    parts.append("## Проект API-контрактов\n" + ("Машинная спецификация: [openapi.json](openapi.json); проверка структуры не является испытанием приложения." if design.get("schema_version") == "2.0" else "Это описание, а не валидированная OpenAPI-спецификация."))
     for endpoint in d["api"]:
         parts.append(f"### {endpoint['method']} {endpoint['path']}\n{endpoint['description']}\n\nЗапрос: {endpoint['request']}\n\nОтвет: {endpoint['response']}\n\nДоступ: {endpoint['auth']}\n\nТребования: " + ", ".join(endpoint["requirement_ids"]))
     parts.append("## События и интеграции\n" + _bullets([f"{e['name']}: {e['schema']}. Доставка: {e['delivery']}" for e in d["events"]]))
@@ -51,10 +56,23 @@ def render_documents(requirements, analysis, design, answers, report, demo=False
             label = "'" + label
         writer.writerow([fr["id"], label, "; ".join(t["id"] for t in d["test_scenarios"] if fr["id"] in t["requirement_ids"]), "; ".join(e["method"] + " " + e["path"] for e in d["api"] if fr["id"] in e["requirement_ids"])])
     dump = lambda value: json.dumps(value, ensure_ascii=False, indent=2) + "\n"
-    return {"requirements.md": banner + "# Исходные требования\n\n" + requirements,
-            "analysis.json": dump(a), "design.json": dump(d), "answers.json": dump(answers),
+    documents = {"requirements.md": banner + "# Исходные требования\n\n" + requirements,
+            "analysis.json": dump(a), "design.json": dump(design), "answers.json": dump(answers),
             "system-analysis.md": "\n\n".join(parts) + "\n", "acceptance-tests.md": "\n\n".join(tests) + "\n",
             "traceability.csv": out.getvalue(), "quality-report.json": dump(report)}
+    if design.get("schema_version") == "2.0":
+        extra = ["## Допущения проектирования\n" + _bullets([f"{x['id']}: {x['text']} ({x['reason']})" for x in design['assumptions']]),
+                 "## Открытые вопросы\n" + _bullets(design['open_questions'])]
+        assumptions_document = "\n\n".join(extra) + "\n"
+        extra.append("## Экраны и состояния\n" + "\n\n".join("### " + s['name'] + " (" + s['route'] + ")\nРоли: " + ', '.join(s['roles']) + "\n" + _bullets([k + ': ' + v for k,v in s['states'].items()]) for s in design['screens']))
+        extra.append("## Права операций\n" + _bullets([r['id'] + ': ' + '; '.join(p['operation_id'] + ' [' + p['scope'] + ']' for p in r['permissions']) for r in design['roles']]))
+        documents['system-analysis.md'] += "\n\n".join(extra) + "\n"
+        documents.update({'openapi.json': dump(build_openapi(design, analysis['title'])),
+                          'data-model.json': dump(design['data_model']), 'screens.json': dump(design['screens']),
+                          'events.json': dump(design['events']), 'permissions.json': dump(design['roles']),
+                          'assumptions-and-questions.md': assumptions_document})
+    documents['system-analysis.md'] = with_contents(documents['system-analysis.md'])
+    return documents
 
 
 def write_files(directory, documents):
