@@ -10,6 +10,7 @@ from .artifacts import render_documents, write_files
 from .contracts import SYSTEM_PROMPT, analysis_prompt, design_prompt, parse_json, validate_analysis, validate_design
 from .demo import REQUIREMENTS, fixture
 from .provider import Client
+from .designing import Designer, compact_context
 
 
 class Engine:
@@ -31,7 +32,8 @@ class Engine:
         with self.lock:
             job["events"].append({"time": datetime.now(timezone.utc).isoformat(), "text": text})
 
-    def create(self, requirements, config=None, demo=False):
+    def create(self, requirements, config=None, demo=False, context=None):
+        context = compact_context(context or {})
         if not demo and self.design_schema_version == "2.0":
             from .specifications import require_validation_tools
             require_validation_tools()
@@ -46,7 +48,7 @@ class Engine:
             job = {"id": job_id, "status": "running", "stage": "analysis", "demo": demo,
                    "created_at": datetime.now(timezone.utc).isoformat(), "events": [], "error": None,
                    "requirements": REQUIREMENTS if demo else requirements, "analysis": None, "design": None,
-                   "answers": {}, "_answers_submitted": False, "files": [], "report": None, "_started": time.monotonic(), "_active_seconds": 0.0,
+                   "answers": {}, "_context": context, "_answers_submitted": False, "files": [], "report": None, "_started": time.monotonic(), "_active_seconds": 0.0,
                    "_client": None if demo else self.client_factory(config), "_busy": True, "_cancelled": False}
             self.jobs[job_id] = job
         threading.Thread(target=self._initial, args=(job,), daemon=True).start()
@@ -147,17 +149,60 @@ class Engine:
             if self.design_schema_version == "2.0" and data.get("schema_version") != "2.0":
                 issues.append("New generations require schema_version=2.0; legacy remains readable")
             return issues
-        design = self._structured(job, design_prompt(job["requirements"], job["analysis"], job["answers"], self.design_schema_version), "Проектирование", validate_generated)
+        if self.design_schema_version == "2.0":
+            designer = job.pop('_designer', None) or Designer(
+                self.root / job['id'], job['_client'], job['requirements'], job['analysis'],
+                job['answers'], job['_context'], ensure_active=lambda: self._ensure_active(job),
+                event=lambda text: self._event(job, text))
+            try:
+                design = designer.run()
+            finally:
+                job['_client'].calls[:] = copy.deepcopy(designer.state['calls'])
+                job['_design_metrics'] = {'resumptions': designer.state['resumptions'],
+                    'validation_history': copy.deepcopy(designer.state['validation_history'])}
+        else:
+            design = self._structured(job, design_prompt(job["requirements"], job["analysis"], job["answers"], self.design_schema_version), "Проектирование", validate_generated)
         self._set(job, design=design)
         self._finish(job, start)
+
+    def resume_design(self, job_id, config):
+        """Explicitly restore only a v2 design checkpoint, including prior call history."""
+        if len(job_id) != 32 or any(c not in '0123456789abcdef' for c in job_id):
+            raise ValueError('Invalid run ID')
+        if self.design_schema_version != '2.0':
+            raise ValueError('Design checkpoints require v2')
+        with self.lock:
+            if any(j['_busy'] or j['status'] == 'awaiting_answers' for j in self.jobs.values()):
+                raise ValueError('Another run is active')
+            path = self.root / job_id / 'design-checkpoint.json'
+            state = json.loads(path.read_text(encoding='utf-8'))
+            inputs = state['inputs']
+            client = self.client_factory(config)
+            designer = Designer(path.parent, client, inputs['requirements'], inputs['analysis'],
+                                inputs['answers'], inputs['source_summary'], resume=True)
+            now = time.monotonic()
+            job = {'id': job_id, 'status': 'running', 'stage': 'design', 'demo': False,
+                   'created_at': datetime.now(timezone.utc).isoformat(), 'events': [], 'error': None,
+                   'requirements': inputs['requirements'], 'analysis': inputs['analysis'], 'design': None,
+                   'answers': inputs['answers'], '_context': inputs['source_summary'],
+                   '_answers_submitted': True, 'files': [], 'report': None, '_started': now,
+                   '_active_seconds': state['seconds'], '_client': client, '_designer': designer,
+                   '_busy': True, '_cancelled': False}
+            designer.ensure_active = lambda: self._ensure_active(job)
+            designer.event = lambda text: self._event(job, text)
+            self.jobs[job_id] = job
+        self._event(job, 'Явное продолжение проектирования с контрольной точки')
+        threading.Thread(target=self._resume, args=(job,), daemon=True).start()
+        return job_id
 
     def _metrics(self, job, start):
         calls = [] if job["_client"] is None else copy.deepcopy(job["_client"].calls)
         def tokens(field):
-            return sum(c[field] for c in calls) if calls and all(c[field] is not None for c in calls) else None
+            return sum(c[field] for c in calls) if calls and all(c.get(field) is not None for c in calls) else None
         return {"wall_seconds": round(time.monotonic() - job["_started"], 3),
                 "processing_seconds": round(job["_active_seconds"] + time.monotonic() - start, 3),
                 "model_calls": len(calls), "repair_attempts": sum(c["attempt"] > 1 for c in calls),
+                **job.get('_design_metrics', {}),
                 "input_tokens": tokens("input_tokens"), "output_tokens": tokens("output_tokens"), "calls": calls,
                 "token_note": "Только usage от API; отсутствие данных не считается нулевым расходом",
                 "manual_actions": [{"type": "answer" if job["answers"].get(q["id"]) else "assumption", "question_id": q["id"]} for q in (job["analysis"] or {}).get("questions", [])] if job["_answers_submitted"] else []}
@@ -205,7 +250,8 @@ class Engine:
             if job["_cancelled"]:
                 self._save_cancelled(job, start)
             else:
-                job.update(status="failed", error=message, report=report, files=sorted(files), _busy=False, _client=None)
+                job.update(status="failed", error=message, report=report, files=sorted(files), _busy=False, _client=None,
+                           can_resume_design=(self.root / job['id'] / 'design-checkpoint.json').exists())
 
     def _save_cancelled(self, job, start):
         report = {"status": "cancelled", "metrics": self._metrics(job, start)}

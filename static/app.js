@@ -7,7 +7,7 @@ async function api(path, body) {
   const options = body===undefined ? {} : {method:"POST",headers:{"Content-Type":"application/json","X-Pipeline-Token":csrf},body:JSON.stringify(body)};
   const response = await fetch(path,options); let data;
   try { data=await response.json(); } catch { throw new Error("Сервер не ответил. Проверьте, запущено ли приложение"); }
-  if (!response.ok) throw new Error(data.error || "Не удалось выполнить действие");
+  if (!response.ok) {const error=new Error(data.error || "Не удалось выполнить действие");error.status=response.status;throw error;}
   return data;
 }
 function setBusy(busy) { for(const id of ["generate","demo","example","requirements","base-url","model","api-key"]) $(id).disabled=busy; }
@@ -28,6 +28,14 @@ async function start(demo) {
   } catch(error) { notice(error.message,true);setBusy(false); }
 }
 $("generate").onclick=()=>start(false); $("demo").onclick=()=>start(true);
+$("resume-design").onclick=async()=>{
+  $("resume-design").disabled=true;
+  try {
+    await api(`/api/runs/${currentId}/resume-design`,{config:{base_url:$("base-url").value,model:$("model").value,api_key:$("api-key").value}});
+    $("api-key").value="";activeFile=null;notice("");await poll();
+  } catch(error) {notice(error.message,true);}
+  finally {$("resume-design").disabled=false;}
+};
 function render(job) {
   currentJob=job;
   $("run-panel").hidden=false;
@@ -35,6 +43,7 @@ function render(job) {
   const states={running:"Работаем над документами…",awaiting_answers:"Есть вопросы к требованиям",complete:"Документы подготовлены",failed:"Запуск остановлен с ошибкой",cancelled:"Запуск отменен"};
   $("run-status").textContent=states[job.status]||job.status;
   const busy=["running","awaiting_answers"].includes(job.status);setBusy(busy);$("cancel").hidden=!busy;
+  $("resume-design").hidden=!(job.status==="failed" && job.can_resume_design);
   $("events").replaceChildren(...job.events.map(event=>{const row=document.createElement("div");row.className="event";const time=document.createElement("time");time.textContent=new Date(event.time).toLocaleTimeString("ru-RU");row.append(time,document.createTextNode(event.text));return row;}));
   $("events").scrollTop=$("events").scrollHeight;
   const order=["analysis","questions","design","validation"];
@@ -54,7 +63,7 @@ function render(job) {
 async function poll() {
   clearTimeout(timer);
   try { const job=await api("/api/runs/"+currentId);render(job);if(job.status==="running" || (job.status==="cancelled" && job.report===null)) timer=setTimeout(poll,1000); }
-  catch(error) { notice(error.message,true);setBusy(false); }
+  catch(error) { notice(error.message,true);setBusy(false);if(error.status===404 && currentId){$("run-panel").hidden=false;$("resume-design").hidden=false;$("cancel").hidden=true;$("run-status").textContent="Запуск не загружен · можно продолжить сохранённое проектирование";} }
 }
 $("continue").onclick=async()=>{
   const answers={};for(const input of $("questions").querySelectorAll("textarea")) answers[input.dataset.question]=input.value;

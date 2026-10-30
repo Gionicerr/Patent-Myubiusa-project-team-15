@@ -32,6 +32,20 @@ def typed_example(analysis=None):
         'assumptions':[],'open_questions':[],'validation_and_errors':['Validate ownership'],'security_recommendations':['Enforce role'],'limitations':['Document checks only']}
 
 
+def part_reply(design, stage):
+    from app.designing import INVENTORY, NOTES
+    key=stage.removeprefix('Design/')
+    if key=='architecture':
+        return {**{k:copy.deepcopy(design[k]) for k in ('boundaries','components','user_flows')},
+            'inventory':{section:list(design[section]) if field is None else [x[field] for x in design[section]]
+                         for section,field in INVENTORY.items()}}
+    if key=='notes':return {k:copy.deepcopy(design[k]) for k in NOTES}
+    section,name=key.split(':',1)
+    if section=='schemas':return {section:{name:copy.deepcopy(design[section][name])}}
+    if section=='test_scenarios':return {section:[copy.deepcopy(t) for t in design[section] if name in t['requirement_ids']]}
+    return {section:[copy.deepcopy(x) for x in design[section] if x[INVENTORY[section]]==name]}
+
+
 class TypedContractTests(unittest.TestCase):
     def setUp(self):
         self.analysis={'title':'Request tracker','functional_requirements':[{'id':'FR-001'}]}
@@ -138,7 +152,7 @@ class TypedContractTests(unittest.TestCase):
             def __init__(self,config):self.calls=[]
             def complete(self,messages,stage,attempt):
                 self.calls.append({'stage':stage,'attempt':attempt,'status':'ok','seconds':0.01,'input_tokens':1,'output_tokens':2})
-                a,_=fixture();return json.dumps(a if stage=='Анализ' else typed_example(a))
+                a,_=fixture();return json.dumps(a if stage=='Анализ' else part_reply(typed_example(a),stage))
         with tempfile.TemporaryDirectory() as temp:
             e=Engine(temp,Model);id=e.create(REQUIREMENTS,{})
             for _ in range(200):
@@ -155,7 +169,9 @@ class TypedContractTests(unittest.TestCase):
                 time.sleep(.01)
             self.assertEqual(j['status'],'complete',j['error'])
             self.assertIn('openapi.json',j['files'])
-            self.assertEqual(j['report']['metrics']['model_calls'],2)
+            from app.designing import tasks
+            checkpoint=json.loads((Path(temp)/id/'design-checkpoint.json').read_text(encoding='utf-8'))
+            self.assertEqual(j['report']['metrics']['model_calls'],1+len(tasks(checkpoint['parts'],j['analysis'])))
 
     def test_default_engine_rejects_new_untyped_generation(self):
         class Untyped:

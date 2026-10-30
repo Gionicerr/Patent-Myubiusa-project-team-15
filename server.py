@@ -113,9 +113,14 @@ def make_server(host="127.0.0.1", port=8765, runs_root=None, client_factory=None
                     if not isinstance(config_data, dict):
                         raise ValueError("Некорректные настройки подключения")
                     config = normalize_config(config_data)
-                    return self.json({"id": engine.create(requirements.strip(), config)}, 202)
+                    return self.json({"id": engine.create(requirements.strip(), config, context=body.get('source_summary'))}, 202)
                 parts = path.strip("/").split("/")
                 if len(parts) == 4 and parts[:2] == ["api", "runs"]:
+                    if parts[3] == "resume-design":
+                        config_data = body.get('config', {})
+                        if not isinstance(config_data, dict):
+                            raise ValueError('Invalid connection settings')
+                        return self.json({'id': engine.resume_design(parts[2], normalize_config(config_data))}, 202)
                     if parts[3] == "continue":
                         engine.continue_run(parts[2], body.get("answers", {}), body.get("accept_assumptions") is True)
                         return self.json({"ok": True}, 202)
@@ -123,7 +128,7 @@ def make_server(host="127.0.0.1", port=8765, runs_root=None, client_factory=None
                         engine.cancel(parts[2])
                         return self.json({"ok": True})
                 self.json({"error": "Не найдено"}, 404)
-            except (ValueError, TypeError, RecursionError) as exc:
+            except (ValueError, TypeError, RecursionError, FileNotFoundError) as exc:
                 self.json({"error": str(exc) if isinstance(exc, ValueError) else "Некорректный запрос"}, 400)
             except KeyError:
                 self.json({"error": "Запуск не найден"}, 404)
