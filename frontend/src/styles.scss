@@ -1,0 +1,17 @@
+@use '@angular/material' as mat;
+html {
+  @include mat.theme((color: (primary: mat.$cyan-palette, tertiary: mat.$orange-palette), typography: 'Arial', density: 0));
+  --mat-sys-primary: #1c5750;
+  --mat-sys-on-primary: #fff;
+  --mat-sys-surface: #ffffff;
+  --mat-sys-outline: #adbab4;
+  --mat-sys-corner-full: 10px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #f6f7f4; color: #233b36; font-family: Arial, Helvetica, sans-serif; -webkit-font-smoothing: antialiased; }
+button, input, textarea { font: inherit; }
+button { letter-spacing: 0 !important; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid #bf7a28; outline-offset: 4px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

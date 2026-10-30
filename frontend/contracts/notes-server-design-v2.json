@@ -1,0 +1,365 @@
+{
+  "schema_version": "2.0",
+  "boundaries": "One-entity server generator slice; engineering fixture, not a Qwen design result",
+  "user_flows": [
+    {
+      "role": "Employee",
+      "steps": [
+        "Use configured demo bearer",
+        "Create and list own notes"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-002",
+        "FR-003"
+      ]
+    }
+  ],
+  "components": [
+    {
+      "name": "API",
+      "responsibility": "Create and list own records",
+      "technology": "ASP.NET Core .NET10 C#14"
+    },
+    {
+      "name": "DB",
+      "responsibility": "Persistent records",
+      "technology": "PostgreSQL17.9"
+    }
+  ],
+  "data_model": [
+    {
+      "name": "Note",
+      "description": "Persistent employee note",
+      "fields": [
+        {
+          "name": "id",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "Server UUID"
+        },
+        {
+          "name": "ownerId",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "required": true,
+          "description": "Verified demo employee context"
+        },
+        {
+          "name": "title",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "required": true,
+          "description": "Required title"
+        },
+        {
+          "name": "text",
+          "schema": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "required": true,
+          "description": "Text, default empty when omitted"
+        },
+        {
+          "name": "createdAt",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "required": true,
+          "description": "Server UTC creation time"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "name": "ix_note_owner_created",
+          "fields": [
+            "ownerId",
+            "createdAt"
+          ],
+          "unique": false,
+          "method": "btree"
+        }
+      ]
+    }
+  ],
+  "schemas": {
+    "Problem": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "roles": [
+    {
+      "id": "Employee",
+      "name": "Employee",
+      "permissions": [
+        {
+          "operation_id": "createNote",
+          "scope": "own"
+        },
+        {
+          "operation_id": "listNotes",
+          "scope": "own"
+        }
+      ]
+    }
+  ],
+  "api": [
+    {
+      "operation_id": "createNote",
+      "method": "POST",
+      "path": "/api/notes",
+      "summary": "createNote",
+      "roles": [
+        "Employee"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-002",
+        "FR-003"
+      ],
+      "parameters": [],
+      "request_body": {
+        "required": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "text": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "title"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "responses": [
+        {
+          "status": "201",
+          "description": "Success",
+          "schema": {
+            "$ref": "#/components/schemas/Note"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Input/access/server error",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Input/access/server error",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Input/access/server error",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "500",
+          "description": "Input/access/server error",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "listNotes",
+      "method": "GET",
+      "path": "/api/notes",
+      "summary": "listNotes",
+      "roles": [
+        "Employee"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-002",
+        "FR-003"
+      ],
+      "parameters": [],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Success",
+          "schema": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Note"
+            }
+          }
+        },
+        {
+          "status": "401",
+          "description": "Input/access/server error",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Input/access/server error",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "500",
+          "description": "Input/access/server error",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    }
+  ],
+  "screens": [
+    {
+      "id": "future-web",
+      "route": "/notes",
+      "name": "Planned consumer, not generated in server slice",
+      "roles": [
+        "Employee"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-002",
+        "FR-003"
+      ],
+      "display_fields": [
+        {
+          "entity": "Note",
+          "fields": [
+            "title",
+            "text",
+            "createdAt"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "id": "createNote",
+          "label": "createNote",
+          "operation_id": "createNote"
+        },
+        {
+          "id": "listNotes",
+          "label": "listNotes",
+          "operation_id": "listNotes"
+        }
+      ],
+      "states": {
+        "loading": "Planned UI; not generated here",
+        "error": "Planned UI; not generated here",
+        "empty": "Planned UI; not generated here",
+        "forbidden": "Planned UI; not generated here",
+        "ready": "Planned UI; not generated here"
+      }
+    }
+  ],
+  "events": [],
+  "test_scenarios": [
+    {
+      "id": "TC-001",
+      "requirement_ids": [
+        "FR-001"
+      ],
+      "operation_ids": [
+        "createNote",
+        "listNotes"
+      ],
+      "given": "Configured demo employee and database",
+      "when": "Create a note with title 1..100 and text up to 2000 characters",
+      "then": "A valid authenticated POST persists and returns 201; invalid fields return 400",
+      "type": "positive"
+    },
+    {
+      "id": "TC-002",
+      "requirement_ids": [
+        "FR-002"
+      ],
+      "operation_ids": [
+        "createNote",
+        "listNotes"
+      ],
+      "given": "Configured demo employee and database",
+      "when": "Verified demo employee sees only own notes",
+      "then": "Bearer is checked server-side; request cannot select the owner; GET excludes other employees",
+      "type": "positive"
+    },
+    {
+      "id": "TC-003",
+      "requirement_ids": [
+        "FR-003"
+      ],
+      "operation_ids": [
+        "createNote",
+        "listNotes"
+      ],
+      "given": "Configured demo employee and database",
+      "when": "Store data in PostgreSQL and preserve it across server restart",
+      "then": "The same row is present in PostgreSQL and GET after restarting only the server",
+      "type": "positive"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-001",
+      "text": "Optional text defaults to empty string; creation time is UTC; UUID generated server-side",
+      "reason": "Explicit technical choices for the generator check"
+    }
+  ],
+  "open_questions": [],
+  "validation_and_errors": [
+    "400 field validation; 401 missing/invalid demo bearer; no client-selected owner"
+  ],
+  "security_recommendations": [
+    "Demo only; configure separate tokens outside source; owner from verified context"
+  ],
+  "limitations": [
+    "Engineering specification for an isolated generator check; not a successful Qwen analysis/design result",
+    "UI, registration, production identity and infrastructure automation are out of scope"
+  ]
+}
