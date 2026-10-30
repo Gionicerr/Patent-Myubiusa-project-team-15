@@ -1,0 +1,36 @@
+{
+  "mode": "prepared_example",
+  "status": "structural_checks_passed",
+  "checks": [
+    "Формат обязательных полей",
+    "Уникальные FR-ID и TC-ID",
+    "Цитаты найдены в исходном тексте",
+    "Нет неизвестных FR-ссылок",
+    "Каждое FR связано хотя бы с одним сценарием проверки"
+  ],
+  "requirements_count": 6,
+  "test_scenarios_count": 7,
+  "scenario_coverage_percent": 100,
+  "issues": [],
+  "limitations": [
+    "Покрытие означает наличие ссылок, а не качество или выполнение тестов",
+    "Смысловую полноту и корректность должен проверить человек",
+    "Код приложения, сборка, UI-тесты и CVE-сканирование не выполнялись"
+  ],
+  "metrics": {
+    "wall_seconds": 0.015,
+    "processing_seconds": 0.015,
+    "model_calls": 0,
+    "repair_attempts": 0,
+    "input_tokens": null,
+    "output_tokens": null,
+    "calls": [],
+    "token_note": "Только usage от API; отсутствие данных не считается нулевым расходом",
+    "manual_actions": [
+      {
+        "type": "assumption",
+        "question_id": "Q-001"
+      }
+    ]
+  }
+}

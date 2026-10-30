@@ -1,0 +1,7 @@
+﻿requirement_id,requirement,test_scenario_ids,api_endpoints
+FR-001,Определить зону по координатам и показать номер,TC-001,POST /api/locations
+FR-002,Подтвердить парковочную сессию,TC-002,POST /api/sessions
+FR-003,Предупредить за 10 минут,TC-003,
+FR-004,Предупредить о смене зоны,TC-004,POST /api/locations
+FR-005,Показать историю администратору,TC-005; TC-007,GET /api/history
+FR-006,Использовать mock оплаты,TC-006,

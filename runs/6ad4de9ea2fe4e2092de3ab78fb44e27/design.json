@@ -1,0 +1,213 @@
+{
+  "boundaries": "Учебное описание. Сценарий ограничен открытым PWA и mock-координатами. Приложение не создано.",
+  "user_flows": [
+    {
+      "role": "Водитель",
+      "steps": [
+        "Открыть карту",
+        "Получить зону",
+        "Подтвердить сессию",
+        "Получить предупреждение"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-002",
+        "FR-003",
+        "FR-004",
+        "FR-006"
+      ]
+    },
+    {
+      "role": "Администратор",
+      "steps": [
+        "Открыть историю",
+        "Просмотреть события"
+      ],
+      "requirement_ids": [
+        "FR-005"
+      ]
+    }
+  ],
+  "components": [
+    {
+      "name": "PWA и административные экраны",
+      "responsibility": "Интерфейс водителя и администратора",
+      "technology": "Angular 20.1.6"
+    },
+    {
+      "name": "API",
+      "responsibility": "Зоны, сессии, события и mock-адаптер",
+      "technology": "ASP.NET Core / .NET 10 / C# 14"
+    },
+    {
+      "name": "Хранилище",
+      "responsibility": "Сессии, геометрии и история",
+      "technology": "PostgreSQL 17.9 + PostGIS"
+    }
+  ],
+  "data_model": [
+    {
+      "entity": "ParkingZone",
+      "fields": [
+        "id: UUID",
+        "number: string",
+        "geometry: Polygon, SRID 4326"
+      ],
+      "relations": []
+    },
+    {
+      "entity": "ParkingSession",
+      "fields": [
+        "id: UUID",
+        "driver_id: UUID",
+        "zone_id: UUID",
+        "ends_at: UTC timestamp"
+      ],
+      "relations": [
+        "zone_id → ParkingZone.id"
+      ]
+    },
+    {
+      "entity": "ParkingEvent",
+      "fields": [
+        "id: UUID",
+        "session_id: UUID",
+        "type: string",
+        "occurred_at: UTC timestamp"
+      ],
+      "relations": [
+        "session_id → ParkingSession.id"
+      ]
+    }
+  ],
+  "api": [
+    {
+      "method": "POST",
+      "path": "/api/locations",
+      "description": "Определить зону и смену зоны",
+      "request": "latitude: -90..90; longitude: -180..180; timestamp: UTC",
+      "response": "200: zoneId, zoneNumber, changed; 400: validation error",
+      "auth": "Водитель, только свой автомобиль",
+      "requirement_ids": [
+        "FR-001",
+        "FR-004"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions",
+      "description": "Подтвердить сессию",
+      "request": "zoneId: UUID, endsAt: UTC в будущем, idempotencyKey: UUID",
+      "response": "201: sessionId, endsAt; 409: конфликт сессии",
+      "auth": "Водитель, только своя сессия",
+      "requirement_ids": [
+        "FR-002"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/history",
+      "description": "История",
+      "request": "from, to: UTC; limit: 1..100",
+      "response": "200: sessions[], events[]; 403: недостаточно прав",
+      "auth": "Администратор",
+      "requirement_ids": [
+        "FR-005"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "ParkingWarningDue",
+      "schema": "version: 1; id: UUID; sessionId: UUID; occurredAt: UTC",
+      "delivery": "Внутренний обработчик; дедупликация по sessionId и типу, Kafka не требуется"
+    }
+  ],
+  "validation_and_errors": [
+    "Проверять диапазон координат и формат времени",
+    "При отсутствии координат не подтверждать нахождение в зоне",
+    "Ошибки: code, message, fieldErrors, requestId"
+  ],
+  "security_recommendations": [
+    "Проверять роль и принадлежность автомобиля на backend",
+    "Не писать ключи и подробные маршруты в общедоступные логи"
+  ],
+  "test_scenarios": [
+    {
+      "id": "TC-001",
+      "requirement_ids": [
+        "FR-001"
+      ],
+      "given": "Точка внутри тестового полигона",
+      "when": "Поступили координаты",
+      "then": "Показан правильный номер зоны",
+      "type": "positive"
+    },
+    {
+      "id": "TC-002",
+      "requirement_ids": [
+        "FR-002"
+      ],
+      "given": "Выбрана зона и будущее время окончания",
+      "when": "Водитель подтвердил сессию",
+      "then": "Сессия сохранена и доступна после повторного открытия",
+      "type": "positive"
+    },
+    {
+      "id": "TC-003",
+      "requirement_ids": [
+        "FR-003"
+      ],
+      "given": "Активная сессия и управляемые часы",
+      "when": "Осталось ровно 10 минут",
+      "then": "Создано одно предупреждение; повторная проверка не дублирует его",
+      "type": "boundary"
+    },
+    {
+      "id": "TC-004",
+      "requirement_ids": [
+        "FR-004"
+      ],
+      "given": "Автомобиль находился в зоне A",
+      "when": "Подтверждена смена на зону B",
+      "then": "Показана необходимость проверки новой оплаты, оплата не объявлена выполненной",
+      "type": "positive"
+    },
+    {
+      "id": "TC-005",
+      "requirement_ids": [
+        "FR-005"
+      ],
+      "given": "Сохранены сессия и событие",
+      "when": "Администратор открыл историю",
+      "then": "Записи видны в хронологическом порядке",
+      "type": "positive"
+    },
+    {
+      "id": "TC-006",
+      "requirement_ids": [
+        "FR-006"
+      ],
+      "given": "Подключен mock-адаптер",
+      "when": "Запрошен тестовый статус оплаты",
+      "then": "Возвращен тестовый ответ; реальный платеж не инициирован",
+      "type": "positive"
+    },
+    {
+      "id": "TC-007",
+      "requirement_ids": [
+        "FR-005"
+      ],
+      "given": "Вошел водитель",
+      "when": "Запрошена административная история",
+      "then": "Получен отказ 403 без раскрытия чужих данных",
+      "type": "negative"
+    }
+  ],
+  "limitations": [
+    "Это заранее подготовленный пример, Qwen не вызывалась",
+    "Вопрос о фоновых уведомлениях не согласован; принято демонстрационное допущение",
+    "Описания тестов не являются выполненными тестами",
+    "API не реализовано, OpenAPI-файл и код приложения не генерируются этой версией"
+  ]
+}

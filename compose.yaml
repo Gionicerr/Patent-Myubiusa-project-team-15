@@ -1,0 +1,14 @@
+services:
+  analyst:
+    build: .
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      QWEN_BASE_URL: ${QWEN_BASE_URL:-}
+      QWEN_MODEL: ${QWEN_MODEL:-Qwen3.8-27B}
+      QWEN_API_KEY: ${QWEN_API_KEY:-}
+    volumes:
+      - results:/app/runs
+    restart: unless-stopped
+volumes:
+  results:
