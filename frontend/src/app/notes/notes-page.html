@@ -1,0 +1,86 @@
+<div class="app-shell">
+  <header class="topbar">
+    <a class="brand" href="/notes" aria-label="Заметки — главная">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h5"/></svg></span>
+      <span>Заметки<span class="brand-subtitle">Рабочее пространство</span></span>
+    </a>
+    <span class="connection-status" [class.active]="connected()"><span aria-hidden="true"></span>{{ connected() ? 'Сеанс подключён' : 'Нет подключения' }}</span>
+  </header>
+
+  <main>
+    @if (mock) {
+      <div class="demo-banner" role="note"><span class="demo-dot" aria-hidden="true"></span><strong>Тестовые данные. Сервер не подключён</strong><span>Заметки хранятся только до перезагрузки вкладки.</span></div>
+    }
+    <div class="page-heading"><div><p class="eyebrow">ЛИЧНОЕ ПРОСТРАНСТВО</p><h1>Мои заметки</h1><p class="subtitle">Сохраните мысль. Вернитесь к ней позже.</p></div><span class="page-index" aria-hidden="true">01 / NOTES</span></div>
+
+    <section class="session-panel" aria-labelledby="session-title">
+      <div class="session-copy"><h2 id="session-title">{{ mock ? 'Тестовый сеанс' : 'Подключение к API' }}</h2>
+        <p>{{ mock ? 'Начните с фиктивным токеном или задайте свой для проверки смены пользователя.' : 'Введите демонстрационный токен целевого приложения, полученный от владельца сервера.' }}</p>
+        <p class="privacy-note">Токен хранится только в памяти вкладки. При смене токена текущие данные очищаются.</p>
+      </div>
+      <div class="session-actions">
+        <form (submit)="connect(); $event.preventDefault()" class="token-form">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Токен приложения</mat-label>
+            <input matInput type="password" [formControl]="tokenInput" autocomplete="off" spellcheck="false" aria-describedby="token-help">
+            @if (tokenInput.touched && tokenInput.invalid) { <mat-error>Введите токен</mat-error> }
+          </mat-form-field>
+          <button mat-stroked-button type="submit">{{ connected() ? 'Сменить токен' : 'Подключиться' }}</button>
+        </form>
+        <span id="token-help" class="visually-hidden">Это токен приложения, а не ключ Qwen.</span>
+        <div class="session-links">
+          @if (mock && !connected()) { <button mat-button type="button" (click)="startDemo()">Начать тестовый сеанс</button> }
+          @if (connected()) { <button mat-button type="button" (click)="disconnect()">Завершить сеанс</button> }
+        </div>
+      </div>
+    </section>
+
+    <div class="workspace">
+      <section class="compose panel" aria-labelledby="create-title">
+        <div class="section-label"><span class="small-mark" aria-hidden="true">+</span><h2 id="create-title">Новая заметка</h2></div>
+        <p class="section-description">Для идей, деталей и важных мелочей.</p>
+        <form [formGroup]="form" (ngSubmit)="submit()">
+          <mat-form-field appearance="outline">
+            <mat-label>Заголовок</mat-label>
+            <input matInput formControlName="title" [readonly]="saving() || !connected()" autocomplete="off">
+            <mat-hint align="end">{{ form.controls.title.value.length }} / 100</mat-hint>
+            @if (form.controls.title.hasError('required') || form.controls.title.hasError('blank')) { <mat-error>Введите заголовок, не только пробелы</mat-error> }
+            @else if (form.controls.title.hasError('maxlength')) { <mat-error>Не более 100 символов</mat-error> }
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Текст заметки</mat-label>
+            <textarea matInput formControlName="text" rows="7" [readonly]="saving() || !connected()"></textarea>
+            <mat-hint>Необязательно</mat-hint><mat-hint align="end">{{ form.controls.text.value.length }} / 2000</mat-hint>
+            @if (form.controls.text.hasError('maxlength')) { <mat-error>Не более 2000 символов</mat-error> }
+          </mat-form-field>
+          @if (!connected()) { <p class="form-help">Подключите сеанс, чтобы создать заметку.</p> }
+          @if (saveError()) { <div class="feedback error" role="alert">{{ saveError() }}</div> }
+          @if (success()) { <div class="feedback success" role="status">{{ success() }}</div> }
+          <button mat-flat-button class="create-button" type="submit" [disabled]="!connected() || saving() || mustCheckList()">{{ saving() ? 'Сохраняем…' : 'Создать заметку' }}<svg class="button-arrow" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg></button>
+          @if (mustCheckList()) { <button mat-button type="button" (click)="reload()" [disabled]="loading()">Проверить список перед повтором</button> }
+        </form>
+      </section>
+
+      <section class="collection" aria-labelledby="list-title" [attr.aria-busy]="loading()">
+        <div class="collection-heading"><div><h2 id="list-title">Сохранённое <span class="count">{{ notes().length }}</span></h2><p class="section-description">Время создания отображается в вашем местном времени.</p></div>
+          <button mat-stroked-button type="button" (click)="reload()" [disabled]="!connected() || loading() || saving()">Обновить список</button>
+        </div>
+        @if (loading()) { <mat-progress-bar mode="indeterminate" aria-label="Загрузка заметок" /><p class="loading-label" role="status">Загружаем заметки…</p> }
+        @if (listError()) {
+          <div class="feedback error list-error" role="alert"><strong>{{ success() ? 'Заметка создана, но список обновить не удалось.' : 'Не удалось загрузить заметки.' }}</strong><p>{{ listError() }}</p><button mat-button type="button" (click)="reload()">Повторить загрузку</button></div>
+        }
+        @if (!connected()) {
+          <div class="empty-state panel"><div class="empty-art" aria-hidden="true"><svg viewBox="0 0 80 80"><rect x="17" y="10" width="47" height="60" rx="6"/><path d="M28 29h25M28 39h25M28 49h15"/></svg></div><h3>Ваши мысли — в одном месте</h3><p>Подключите сеанс выше.<br>Здесь появятся только ваши заметки.</p></div>
+        } @else if (loaded() && !loading() && !listError() && notes().length === 0) {
+          <div class="empty-state panel"><div class="empty-art" aria-hidden="true"><svg viewBox="0 0 80 80"><rect x="17" y="10" width="47" height="60" rx="6"/><path d="M28 29h25M28 39h16M47 50v14M40 57h14"/></svg></div><p class="eyebrow">ЧИСТЫЙ ЛИСТ</p><h3>Начните с первой заметки</h3><p>Добавьте заголовок и, если нужно, текст<br>в форме создания заметки.</p></div>
+        }
+        <div class="notes-grid">
+          @for (note of notes(); track note.id) {
+            <article class="note-card panel"><div class="note-card-top"><span class="note-tag">ЗАМЕТКА</span></div><h3>{{ note.title }}</h3>@if (note.text) { <p class="note-text">{{ note.text }}</p> } @else { <p class="no-text">Без текста</p> }<footer><span class="date-dot" aria-hidden="true"></span><time [attr.datetime]="note.createdAt">{{ note.createdAt | date:'dd.MM.yyyy, HH:mm' }}</time></footer></article>
+          }
+        </div>
+      </section>
+    </div>
+    <footer class="page-footer"><span>Заметки / Личное пространство</span><span>{{ mock ? 'Демонстрационный режим' : 'Доступ проверяется сервером' }}</span></footer>
+  </main>
+</div>

@@ -343,3 +343,32 @@ The source report must mark SQL as Qwen-generated and database-verified; its has
 Results: `generation-report.json`, command logs, per-operation accepted responses, `project/provenance.json` and (after actual HTTP checks) `api-evidence.json`. Only successful build and all API/DB checks set `application_verified=true`. PostgreSQL 17.9 on Debian 13 remains a known difference from the specified Debian 12 package.
 
 The generated API binds to VM loopback. For client work use an SSH tunnel: `ssh -p 10015 -L 18880:127.0.0.1:<API_PORT> team15@85.143.113.230`. Configure a local demo token through a protected environment file; obtain its value privately on the VM, never from reports or archives. The API contract is in `project/contract/openapi.json`. Compose stop/start commands must use the same project name and environment file to retain the database volume.
+
+
+### Парковочный сервер: профиль сессий
+
+Отдельный явный запуск на ВМ организаторов из полного проверенного v2 и согласованного OpenAPI:
+
+```sh
+python generate_parking.py --design examples/parking-contracts-reviewed.json --analysis examples/parking-analysis-v2.json --openapi docs/stage2/openapi.json --source spb.json --output runs/parking-new --verify --sudo-docker
+```
+
+Параметры Qwen задаются существующим окружением/.env пайплайна. Реальные запросы выполняются только с ВМ. Два отдельных тела `createSession` и `confirmSession` получает Qwen; SQL, DTO, маршруты, чтение, проверяемая демонстрационная идентификация, транзакции и PostgreSQL-идемпотентность — технические шаблоны. Максимум два основных обращения и одно адресное исправление. HTTP429, сеть и finish_reason=length останавливают обращения; успешная часть и метрики остаются на диске. Текст рассуждений не сохраняется. Создание нового каталога не является разрешением обходить согласованный бюджет.
+
+Поддерживаются ровно `listVehicles`, `listObjects`, `createSession`, `listVehicleSessions`, `confirmSession`, `listAllSessions`. Полный исходный OpenAPI копируется без изменений; реализованные возможности перечислены отдельно в `project/contract/profile.json`. Остальные маршруты не имитируются. Таблицы включают FK-зависимости Account, Vehicle, ImportBatch, ParkingObject, Route, ParkingSession и техническую RequestReplay. На автомобиль действует уникальный индекс status=active; paymentConfirmed ограничен false. Списки используют items/page/pageSize/total. Ошибки содержат code/message/traceId.
+
+Данные: два водителя, администратор, два автомобиля и два первых валидных объекта spb (проверяются схема, WKT и диапазон координат). `source-sample.json` содержит индексы, SHA-256 исходного файла и исходные тарифы без пересчёта. Это выборка, не полный импорт. Пространственных операций нет; optional derived geometryGeoJson хранится nullable JSONB, GiST/PostGIS отложены. Автоматический фоновый переход active→expired не реализован в этом профиле; ограничения этого состояния не следует считать полным жизненным циклом парковки.
+
+`--verify` собирает контейнеры и выполняет реальные HTTP/SQL-проверки: права, изоляция, пагинация, валидация, FK, одинаковая запись через POST/GET, active conflict, идемпотентность/конфликты и конкурентный повтор, ревизии, перезапуск только API, чтение SQL. Только их успех устанавливает application_verified=true и оставляет приложение работающим. Это не означает реализацию всей парковочной системы. PostgreSQL17.9 Debian13 отличается от указанного пакета Debian12.
+
+Для повторной сборки и проверки уже принятых обработчиков **без новых обращений Qwen**:
+
+```sh
+python generate_parking.py --output runs/parking-new --source spb.json --verify --verify-existing --sudo-docker
+```
+
+Режим сверяет исходные контракты, источник, модель и SHA-256 обоих обработчиков, сохраняет предыдущий отчёт и расход. Runtime.cs явно обновляется из текущего технического шаблона, правка отражается отдельно от модельных тел. Отсутствующий/изменённый обработчик не перегенерируется. Повторный функциональный smoke создаёт тестовые записи и требует чистого отдельного тестового окружения: не запускайте его поверх демонстрационной БД с уже созданными активными сессиями. Для обычной работы используйте manage.sh, который не вызывает Qwen и не запускает smoke.
+
+После успешного запуска: `cd runs/parking-new`, `./manage.sh status|build|start|stop|restart`. stop сохраняет том, restart затрагивает только API. Защищённый `runtime.env` (0600) содержит DB_PASSWORD и DEMO_TOKEN_A, DEMO_TOKEN_B, DEMO_TOKEN_ADMIN. Токены сопоставляются с фиксированными демонстрационными учётными записями сервера; роли читаются из БД. Не включайте файл в Git/архивы. Для запросов нужен Authorization: Bearer <token>. Получайте нужный токен только через приватный SSH-доступ и храните локально вне исходников. API публикуется только на loopback; порт указан в generation-report.json. Подключение: `ssh -N -p 10015 -L 18881:127.0.0.1:<API_PORT> team15@85.143.113.230`, затем http://127.0.0.1:18881/api/vehicles. CORS, публичный доступ, клиенты и TLS этим этапом не настраиваются.
+
+Артефакты: project/, generation-report.json, api-evidence.json, commands.json, command-*.log, source-sample.json, provenance.json внутри project. Не путайте полные входные спецификации с реально поддержанным профилем. Инженерные правки технических шаблонов и модельные тела учитываются раздельно.
