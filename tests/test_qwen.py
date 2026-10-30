@@ -40,8 +40,11 @@ def api(replies):
         def do_POST(self):
             received.append((self.path, self.headers.get("Authorization"),
                              json.loads(self.rfile.read(int(self.headers["Content-Length"])))))
-            status, body = replies[len(received) - 1]
+            reply = replies[len(received) - 1]
+            status, body = reply[:2]
             self.send_response(status)
+            if len(reply) == 3:
+                for name, value in reply[2].items(): self.send_header(name, value)
             if status == 302:
                 self.send_header("Location", "/redirected")
             self.end_headers()

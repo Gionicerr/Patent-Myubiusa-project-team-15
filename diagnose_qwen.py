@@ -9,6 +9,7 @@ from pathlib import Path
 from app.config import ROOT, load_env
 from app.contracts import parse_json
 from app.provider import Client, ProviderError, normalize_config
+from app.telemetry import size
 
 
 def diagnose(config):
@@ -21,6 +22,7 @@ def diagnose(config):
         ], "diagnostic", 1)
         try:
             data = parse_json(content)
+            client.calls[-1]['parsed_json_size'] = size(data)
             valid = isinstance(data, dict) and set(data) == {"ok"} and data["ok"] is True
         except (ValueError, AttributeError, RecursionError):
             valid = False

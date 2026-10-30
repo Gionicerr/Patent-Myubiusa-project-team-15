@@ -36,14 +36,18 @@ def part_reply(design, stage):
     from app.designing import INVENTORY, NOTES
     key=stage.removeprefix('Design/')
     if key=='architecture':
+        inventory={section:list(design[section]) if field is None else [x[field] for x in design[section]]
+                   for section,field in INVENTORY.items()}
+        ids=sorted({id for flow in design['user_flows'] for id in flow['requirement_ids']})
         return {**{k:copy.deepcopy(design[k]) for k in ('boundaries','components','user_flows')},
-            'inventory':{section:list(design[section]) if field is None else [x[field] for x in design[section]]
-                         for section,field in INVENTORY.items()}}
+            'inventory':inventory,'context_map':{'elements':[
+                {'section':section,'name':name,'requirement_ids':ids,'question_ids':[]}
+                for section,names in inventory.items() for name in names], 'global_question_ids':[]}}
     if key=='notes':return {k:copy.deepcopy(design[k]) for k in NOTES}
-    section,name=key.split(':',1)
-    if section=='schemas':return {section:{name:copy.deepcopy(design[section][name])}}
-    if section=='test_scenarios':return {section:[copy.deepcopy(t) for t in design[section] if name in t['requirement_ids']]}
-    return {section:[copy.deepcopy(x) for x in design[section] if x[INVENTORY[section]]==name]}
+    section,names=key.split(':',1);names=names.split('+')
+    if section=='schemas':return {section:{name:copy.deepcopy(design[section][name]) for name in names}}
+    if section=='test_scenarios':return {section:[copy.deepcopy(t) for t in design[section] if set(names)&set(t['requirement_ids'])]}
+    return {section:[copy.deepcopy(x) for x in design[section] if x[INVENTORY[section]] in names]}
 
 
 class TypedContractTests(unittest.TestCase):
@@ -152,7 +156,9 @@ class TypedContractTests(unittest.TestCase):
             def __init__(self,config):self.calls=[]
             def complete(self,messages,stage,attempt):
                 self.calls.append({'stage':stage,'attempt':attempt,'status':'ok','seconds':0.01,'input_tokens':1,'output_tokens':2})
-                a,_=fixture();return json.dumps(a if stage=='Анализ' else part_reply(typed_example(a),stage))
+                a,_=fixture();data=a if stage=='Анализ' else part_reply(typed_example(a),stage)
+                if stage=='Design/architecture':data['context_map']['global_question_ids']=[q['id'] for q in a['questions']]
+                return json.dumps(data)
         with tempfile.TemporaryDirectory() as temp:
             e=Engine(temp,Model);id=e.create(REQUIREMENTS,{})
             for _ in range(200):

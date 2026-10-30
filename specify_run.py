@@ -41,7 +41,10 @@ def run(args):
             client=Client(normalize_config(overrides))
             context=compact_context(json.loads(args.context.read_text(encoding='utf-8-sig'))) if args.context else {}
             designer=Designer(args.output,client,requirements,analysis,answers,context,
-                              resume=getattr(args,'resume',False))
+                              resume=getattr(args,'resume',False), batch_sizes={
+                                  'api':getattr(args,'api_batch_size',2),
+                                  'screens':getattr(args,'screen_batch_size',2),
+                                  'test_scenarios':getattr(args,'scenario_batch_size',3)})
             try:
                 design=designer.run()
             finally:
@@ -84,6 +87,9 @@ def main():
     p.add_argument('--answers',type=Path);p.add_argument('--context',type=Path);p.add_argument('--output',required=True,type=Path)
     p.add_argument('--parent-run-id');p.add_argument('--max-tokens',type=int);p.add_argument('--timeout',type=float)
     p.add_argument('--resume',action='store_true',help='Explicitly continue design-checkpoint.json in the same output directory')
+    p.add_argument('--api-batch-size',type=int,choices=(1,2),default=2)
+    p.add_argument('--screen-batch-size',type=int,choices=(1,2),default=2)
+    p.add_argument('--scenario-batch-size',type=int,choices=(1,2,3),default=3)
     p.add_argument('--design',type=Path,help='Validate an explicitly reviewed design instead of calling the model; preserve existing generation metrics')
     args=p.parse_args()
     return run(args)

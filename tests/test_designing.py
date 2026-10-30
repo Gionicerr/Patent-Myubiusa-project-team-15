@@ -28,6 +28,9 @@ class Model:
             self.calls[-1].update(status='error',error_code='rate_limit',input_tokens=None,output_tokens=None)
             raise ProviderError('API returned HTTP 429','rate_limit')
         data=part_reply(self.design,stage)
+        if key=='architecture':
+            payload=json.loads(messages[1]['content'].split('\n',1)[1])
+            data['context_map']['global_question_ids']=[q['id'] for q in payload['analysis'].get('questions',[])]
         if key==self.invalid and attempt==1:
             if key.startswith('api:'):data['api'][0]['responses']=[]
             else:data={}

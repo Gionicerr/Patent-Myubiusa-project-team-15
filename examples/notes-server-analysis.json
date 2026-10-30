@@ -1,0 +1,49 @@
+{
+  "title": "Notes server generator check",
+  "purpose": "Isolated engineering input for server generation, no repeat model analysis",
+  "scope": [
+    "One entity, create and list own records",
+    "No editing, deletion, attachments, mobile UI or external integrations"
+  ],
+  "goals": [
+    "Verify real generated server persistence"
+  ],
+  "roles": [
+    {
+      "name": "Employee",
+      "permissions": [
+        "Create and list own records"
+      ]
+    }
+  ],
+  "functional_requirements": [
+    {
+      "id": "FR-001",
+      "text": "Create a note with title 1..100 and text up to 2000 characters",
+      "source_quote": "Required title up to 100 characters",
+      "acceptance_criteria": [
+        "A valid authenticated POST persists and returns 201; invalid fields return 400"
+      ]
+    },
+    {
+      "id": "FR-002",
+      "text": "Verified demo employee sees only own notes",
+      "source_quote": "Only own notes",
+      "acceptance_criteria": [
+        "Bearer is checked server-side; request cannot select the owner; GET excludes other employees"
+      ]
+    },
+    {
+      "id": "FR-003",
+      "text": "Store data in PostgreSQL and preserve it across server restart",
+      "source_quote": "Data persist in database",
+      "acceptance_criteria": [
+        "The same row is present in PostgreSQL and GET after restarting only the server"
+      ]
+    }
+  ],
+  "nonfunctional_requirements": [],
+  "assumptions": [],
+  "questions": [],
+  "risks": []
+}

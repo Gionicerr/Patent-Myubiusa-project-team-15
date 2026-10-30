@@ -7,17 +7,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .artifacts import render_documents, write_files
-from .contracts import SYSTEM_PROMPT, analysis_prompt, design_prompt, parse_json, validate_analysis, validate_design
+from .contracts import SYSTEM_PROMPT, ANALYSIS_SCHEMA, TECHNOLOGY_PROFILE, analysis_prompt, design_prompt, parse_json, validate_analysis, validate_design
 from .demo import REQUIREMENTS, fixture
 from .provider import Client
-from .designing import Designer, compact_context
+from .designing import Designer, compact_context, batch_settings
+from .telemetry import size, request_sizes, content_sizes
 
 
 class Engine:
-    def __init__(self, root, client_factory=Client, design_schema_version="2.0"):
+    def __init__(self, root, client_factory=Client, design_schema_version="2.0", design_batch_sizes=None):
         if design_schema_version not in ("1.0", "2.0"):
             raise ValueError("Unsupported design schema version")
         self.design_schema_version = design_schema_version
+        self.design_batch_sizes = batch_settings(design_batch_sizes)
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.client_factory = client_factory
@@ -68,10 +70,21 @@ class Engine:
         for attempt in (1, 2):
             self._ensure_active(job)
             self._event(job, f"{stage}: обращение к Qwen, попытка {attempt}/2")
-            content = job["_client"].complete(messages, stage, attempt)
+            count = len(job['_client'].calls)
+            blocks = {'requirements': job['requirements'], 'technology_profile': TECHNOLOGY_PROFILE,
+                      'response_structure': ANALYSIS_SCHEMA} if stage == 'Анализ' else {'prompt': prompt}
+            try:
+                content = job["_client"].complete(messages, stage, attempt)
+                if len(job['_client'].calls) > count:
+                    job['_client'].calls[-1].update(content_sizes(content))
+            finally:
+                if len(job['_client'].calls) > count:
+                    job['_client'].calls[-1].update(request_sizes(messages, blocks))
             self._ensure_active(job)
             try:
                 data = parse_json(content)
+                if len(job['_client'].calls) > count:
+                    job['_client'].calls[-1]['parsed_json_size'] = size(data)
                 issues = validator(data)
             except (ValueError, TypeError, RecursionError):
                 issues = ["Ответ не является корректным JSON-объектом"]
@@ -153,7 +166,7 @@ class Engine:
             designer = job.pop('_designer', None) or Designer(
                 self.root / job['id'], job['_client'], job['requirements'], job['analysis'],
                 job['answers'], job['_context'], ensure_active=lambda: self._ensure_active(job),
-                event=lambda text: self._event(job, text))
+                event=lambda text: self._event(job, text), batch_sizes=self.design_batch_sizes)
             try:
                 design = designer.run()
             finally:
@@ -179,7 +192,8 @@ class Engine:
             inputs = state['inputs']
             client = self.client_factory(config)
             designer = Designer(path.parent, client, inputs['requirements'], inputs['analysis'],
-                                inputs['answers'], inputs['source_summary'], resume=True)
+                                inputs['answers'], inputs['source_summary'], resume=True,
+                                batch_sizes=self.design_batch_sizes)
             now = time.monotonic()
             job = {'id': job_id, 'status': 'running', 'stage': 'design', 'demo': False,
                    'created_at': datetime.now(timezone.utc).isoformat(), 'events': [], 'error': None,

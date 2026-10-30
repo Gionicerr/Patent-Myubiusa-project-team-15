@@ -8,6 +8,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from .telemetry import content_sizes, numeric_usage, rate_headers, request_sizes
 
 
 class ProviderError(Exception):
@@ -82,7 +83,10 @@ class Client:
         if self.config.get("api_key"):
             headers["Authorization"] = "Bearer " + self.config["api_key"]
         record = {"stage": stage, "attempt": attempt, "status": "started", "input_tokens": None, "output_tokens": None,
-                  "model": self.config["model"], "max_tokens": limit}
+                  "model": self.config["model"], "max_tokens": limit,
+                  "usage_numeric": None, "message_content_size": None, "parsed_json_size": None,
+                  "reasoning_prefix_size": None, "rate_limit_headers": None, "finish_reason": None,
+                  **request_sizes(messages, {})}
         self.calls.append(record)
         start = time.monotonic()
         try:
@@ -95,18 +99,21 @@ class Client:
             if not isinstance(body, dict):
                 raise TypeError
             usage = body.get("usage")
+            record['usage_numeric'] = numeric_usage(usage)
             if isinstance(usage, dict):
                 for target, source in [("input_tokens", "prompt_tokens"), ("output_tokens", "completion_tokens")]:
                     value = usage.get(source)
                     record[target] = value if type(value) is int and value >= 0 else None
             choice = body["choices"][0]
+            message = choice.get('message')
+            content = message.get('content') if isinstance(message, dict) else None
+            if isinstance(content, str): record.update(content_sizes(content))
             reason = choice.get("finish_reason")
             record["finish_reason"] = reason if reason in (None, "stop", "length", "content_filter", "tool_calls", "function_call") else "unknown"
             if reason == "length":
                 raise ProviderError("Ответ обрезан лимитом токенов. Увеличьте QWEN_MAX_TOKENS или сократите требования", "truncated")
             if reason not in (None, "stop"):
                 raise ProviderError("API не завершил текстовый ответ обычным образом", "finish_reason")
-            content = choice["message"]["content"]
             if not isinstance(content, str):
                 raise TypeError
             if not content.strip():
@@ -115,6 +122,8 @@ class Client:
             return content
         except urllib.error.HTTPError as exc:
             record["http_status"] = exc.code
+            if exc.code == 429:
+                record['rate_limit_headers'] = rate_headers(exc.headers, self.config.get('api_key', ''))
             meanings = {401: ("unauthorized", "Проверьте ключ"), 403: ("forbidden", "Нет доступа"),
                         404: ("not_found", "Проверьте адрес API и имя модели"),
                         429: ("rate_limit", "Лимит запросов; попробуйте позже")}

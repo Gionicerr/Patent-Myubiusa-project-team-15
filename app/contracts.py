@@ -31,6 +31,15 @@ SYSTEM_PROMPT = """Ты системный аналитик корпоратив
 Списки questions, nonfunctional_requirements и events могут быть пустыми, если это обоснованно.
 """
 
+TECHNOLOGY_PROFILE = {
+    'frontend': 'Angular 20.1.6, совместимый Angular Material',
+    'backend': 'ASP.NET Core / .NET 10 / C# 14',
+    'database': 'PostgreSQL 17.9', 'containers': 'Docker / Docker Compose',
+    'mobile': 'PWA только при требовании мобильного интерфейса; для обычного веб-приложения не требуется',
+    'geodata': 'PostGIS только при географических операциях; серверная версия требует уточнения',
+    'messaging': 'Kafka только при обоснованной необходимости',
+}
+
 
 def analysis_prompt(requirements):
     return ("Проанализируй требования. Присвой функциональным требованиям уникальные ID FR-001 и далее. "
@@ -39,6 +48,9 @@ def analysis_prompt(requirements):
             "остальное перенеси в assumptions. Не более трех вопросов, только о существенных неоднозначностях. "
             "Для каждого вопроса предложи явное допущение. Для короткого входа не раздувай объем.\n"
             "Структура ответа (значения являются примерами, не требованиями):\n" + json.dumps(ANALYSIS_SCHEMA, ensure_ascii=False)
+            + "\nФиксированный технический профиль — конфигурация конкурса, не новое бизнес-требование. "
+            "Не спрашивай повторно заданные версии. Выбирай PWA только при требовании мобильного интерфейса.\n"
+            + json.dumps(TECHNOLOGY_PROFILE, ensure_ascii=False)
             + "\nВХОДНЫЕ ДАННЫЕ:\n" + json.dumps({"requirements": requirements}, ensure_ascii=False))
 
 
@@ -46,7 +58,7 @@ def design_prompt(requirements, analysis, answers, version="2.0"):
     if version == "1.0":
         return ("Составь проект системного анализа; сохрани FR-ID и покрой каждый FR сценарием. "
                 "Ответы пользователя обязательны; численные проектные решения — допущения. Верни один JSON. "
-                "Целевой стек Angular20.1.6/PWA/Angular Material, ASP.NET Core .NET10 C#14, PostgreSQL17.9, "
+                "Целевой стек Angular20.1.6/Angular Material (PWA только при требовании мобильного интерфейса), ASP.NET Core .NET10 C#14, PostgreSQL17.9, "
                 "PostGIS при геоданных; реальные платежи и тесты приложения не выполняются.\n" +
                 json.dumps(DESIGN_SCHEMA, ensure_ascii=False) + "\nВХОД:\n" +
                 json.dumps({"requirements":requirements,"analysis":analysis,"answers":answers},ensure_ascii=False))
@@ -60,7 +72,7 @@ def design_prompt(requirements, analysis, answers, version="2.0"):
             "Все path-параметры объяви required=true. Объяви связи, PK, индексы и ключи дедупликации событий. "
             "Для экранов нужны loading/error/empty/forbidden/ready, действия связываются с operation_id. "
             "Не добавляй предметные требования: численные пороги и алгоритмы помести в assumptions; неясности — open_questions. "
-            "Angular 20.1.6/PWA, Angular Material совместимой версии, ASP.NET Core/.NET 10/C#14, PostgreSQL17.9, "
+            "Angular 20.1.6, PWA только при требовании мобильного интерфейса, Angular Material совместимой версии, ASP.NET Core/.NET 10/C#14, PostgreSQL17.9, "
             "PostGIS при геоданных. Kafka только с обоснованием. Реальные проверки приложения не выполняются. "
             "Неприменимые разделы пустые с объяснением в limitations.\nJSON Schema:\n" +
             json.dumps(contract_schema(), ensure_ascii=False, separators=(",", ":")) +
