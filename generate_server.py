@@ -19,15 +19,26 @@ def main(argv=None):
     parser.add_argument('--sudo-docker',action='store_true',help='Use already authorized sudo -n docker, without changing groups/services')
     parser.add_argument('--repair-truncated',action='store_true',help='Legacy option: rejected by split-file generation; use a new output directory')
     parser.add_argument('--resume',action='store_true',help='Explicitly continue the same split-file run, preserving generated files and total call budget')
+    parser.add_argument('--accepted-run',type=Path,help='Reuse validated SQL from this previous run; generate operation bodies only')
+    parser.add_argument('--accepted-sql-sha256',help='Required exact SHA-256 for reused SQL')
     args=parser.parse_args(argv)
     load_env()
     analysis=json.loads(args.analysis.read_text(encoding='utf-8-sig'))
     design=json.loads(args.design.read_text(encoding='utf-8-sig'))
     origin=json.loads(args.origin.read_text(encoding='utf-8-sig')) if args.origin else 'provided_v2_contract; original author unverified'
     try:
-        generator=ServerGenerator(args.output,Client(normalize_config({})),design,analysis,
+        generator_class=ServerGenerator
+        extra={}
+        if args.accepted_run:
+            if not args.accepted_sql_sha256 or args.resume or args.repair_truncated:
+                raise ValueError('Accepted SQL requires its hash and a new run, without resume/repair-truncated')
+            from app.server_handlers import HandlerGenerator
+            generator_class=HandlerGenerator
+            extra={'accepted_run':args.accepted_run,'accepted_sha256':args.accepted_sql_sha256}
+        elif args.accepted_sql_sha256:raise ValueError('--accepted-sql-sha256 requires --accepted-run')
+        generator=generator_class(args.output,Client(normalize_config({})),design,analysis,
             build=args.build,verify=args.verify,sudo_docker=args.sudo_docker,input_origin=origin,
-            repair_truncated=args.repair_truncated,resume=args.resume)
+            repair_truncated=args.repair_truncated,resume=args.resume,**extra)
         report=generator.run()
     except (ValueError,FileExistsError) as exc:
         print(json.dumps({'status':'not_started','error':str(exc),'model_calls':0},ensure_ascii=False));return 2

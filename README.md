@@ -328,3 +328,18 @@ postgres:17.9, внутренний network, API на свободном loopbac
 окружению. Фактические version() и /etc/os-release PostgreSQL записываются в отчёт; образ
 postgres:17.9 дал Debian 13, тогда как заданием указан пакет для Debian 12. Эта часть соответствия
 остаётся неподтверждённой. Существующие аналитические этапы и результаты не изменяются.
+
+
+### Server generation with accepted SQL and operation bodies
+
+Reuse an accepted SQL file without changing the previous run or its call history:
+
+```sh
+python generate_server.py --analysis examples/notes-server-analysis.json --design examples/notes-server-design-v2.json --origin examples/notes-server-provenance.json --output runs/handlers-new --accepted-run /path/to/previous/run --accepted-sql-sha256 <verified-sha256> --verify --sudo-docker
+```
+
+The source report must mark SQL as Qwen-generated and database-verified; its hash and both input contracts must match. A new output directory is required. SQL bytes are copied unchanged. DTOs, declarations and route wiring come from the typed contract; Qwen supplies only Create and List method bodies. This stage has at most three new calls, including one targeted format/compiler repair. HTTP 429, network errors and truncated answers stop the stage without a model retry. No historical run is resumed or rewritten.
+
+Results: `generation-report.json`, command logs, per-operation accepted responses, `project/provenance.json` and (after actual HTTP checks) `api-evidence.json`. Only successful build and all API/DB checks set `application_verified=true`. PostgreSQL 17.9 on Debian 13 remains a known difference from the specified Debian 12 package.
+
+The generated API binds to VM loopback. For client work use an SSH tunnel: `ssh -p 10015 -L 18880:127.0.0.1:<API_PORT> team15@85.143.113.230`. Configure a local demo token through a protected environment file; obtain its value privately on the VM, never from reports or archives. The API contract is in `project/contract/openapi.json`. Compose stop/start commands must use the same project name and environment file to retain the database volume.

@@ -209,3 +209,74 @@ class ServerGenerationTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class HandlerGenerationTests(unittest.TestCase):
+    def setUp(self):
+        import hashlib
+        self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
+        self.root=Path(self.temp.name);self.a,self.d=inputs()
+        self.source=self.root/'accepted';(self.source/'project/db').mkdir(parents=True)
+        (self.source/'project/contract').mkdir()
+        data=reply()['files'][1]['content'].encode();self.sha=hashlib.sha256(data).hexdigest()
+        (self.source/'project/db/001_init.sql').write_bytes(data)
+        for n,v in [('analysis',self.a),('design',self.d)]:
+            (self.source/f'project/contract/{n}.json').write_text(json.dumps(v))
+        (self.source/'generation-report.json').write_text(json.dumps({'files':{'db/001_init.sql':{
+            'sha256':self.sha,'origin':'qwen_generation','database_schema_verified':True}}}))
+
+    def generator(self, client=None, **kwargs):
+        from app.server_handlers import HandlerGenerator
+        return HandlerGenerator(self.root/'new',client or Fake([{'body':'return Results.Ok();'}]),self.d,self.a,
+            accepted_run=self.source,accepted_sha256=kwargs.pop('sha',self.sha),**kwargs)
+
+    def test_reuse_sql_and_generate_two_bodies_without_full_project(self):
+        g=self.generator()
+        with patch.object(g.runner,'tools',return_value={}):result=g.run()
+        self.assertEqual(result['status'],'generated');self.assertEqual(len(g.client.calls),2)
+        self.assertEqual((g.project/'db/001_init.sql').read_bytes(),(self.source/'project/db/001_init.sql').read_bytes())
+        self.assertEqual(set(result['handlers']),{'Create','List'})
+        self.assertIn('JsonPropertyName("title")',(g.project/'src/Domain.cs').read_text())
+        self.assertIn('Func<HttpContext, Task<IResult>> ListHandler',(g.project/'src/Domain.cs').read_text())
+        self.assertIn('app.MapGet("/api/notes", ListHandler);',(g.project/'src/Domain.cs').read_text())
+        for prompt in g.client.prompts:
+            self.assertNotIn('user_flows',prompt[1]['content'])
+            self.assertNotIn('acceptance_tests',prompt[1]['content'])
+
+    def test_sql_hash_mismatch_no_output(self):
+        with self.assertRaisesRegex(ValueError,'hash'):self.generator(sha='wrong')
+        self.assertFalse((self.root/'new').exists())
+
+    def test_contract_mismatch_rejected(self):
+        self.d['boundaries']='different'
+        with self.assertRaisesRegex(ValueError,'contract differs'):self.generator()
+
+    def test_length_stops_without_repair(self):
+        client=Fake(error=True)
+        def fail(messages,stage,attempt):
+            client.calls.append({'stage':stage,'attempt':attempt,'status':'error','input_tokens':1,'output_tokens':16000})
+            raise ProviderError('truncated','truncated')
+        client.complete=fail;g=self.generator(client)
+        with patch.object(g.runner,'tools',return_value={}):result=g.run()
+        self.assertEqual(result['status'],'provider_failed');self.assertEqual(len(client.calls),1)
+        self.assertFalse(result['repair_used'])
+
+    def test_only_invalid_operation_repaired(self):
+        client=Fake([{'body':'return Results.Ok();'},{'wrong':'bad'},{'body':'return Results.Ok();'}])
+        g=self.generator(client)
+        with patch.object(g.runner,'tools',return_value={}):result=g.run()
+        self.assertEqual(result['status'],'generated')
+        self.assertEqual([c['stage'] for c in client.calls],['Server/handler/Create','Server/handler/List','Server/handler/List'])
+        self.assertTrue(result['repair_used'])
+
+
+    def test_precision_mismatch_targets_create_only(self):
+        g=self.generator();g.root.joinpath('api-evidence.json').write_text(json.dumps({
+            'created_record':{'id':'same','createdAt':'2026-10-30T00:00:00.1234567Z'},
+            'read_before_restart':[{'id':'same','createdAt':'2026-10-30T00:00:00.123456Z'}]}))
+        operation,diagnostic=g.failed_handler('API checks failed')
+        self.assertEqual(operation,'Create');self.assertIn('microseconds',diagnostic)
+
+    def test_ambiguous_api_error_does_not_regenerate_all_handlers(self):
+        g=self.generator()
+        with self.assertRaisesRegex(ValueError,'cannot safely identify'):g.failed_handler('API unavailable')

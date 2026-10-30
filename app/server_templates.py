@@ -126,12 +126,13 @@ COMPOSE = '''services:
     pids_limit: 128
     mem_limit: 512m
     cpus: 1
-    networks: [private]
+    networks: [private, access]
 volumes:
   data:
 networks:
   private:
     internal: true
+  access: {}
 '''
 
 ENV_EXAMPLE = '''# Local demo only. Replace all three secret placeholders; never commit .env.

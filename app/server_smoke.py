@@ -68,16 +68,24 @@ def verify_api(generator):
     add('first_owner_cannot_read_second_owner',code==200 and isinstance(own,list) and all(item.get(b['owner'])==EMPLOYEES[0] for item in own))
     forged={**data,b['owner']:EMPLOYEES[1]}
     add('client_owner_injection_rejected',request('POST',a,forged)[0]==400)
+    add('client_id_injection_rejected',request('POST',a,{**data,b['id']:str(uuid.uuid4())})[0]==400)
     add('client_timestamp_injection_rejected',request('POST',a,{**data,b['created']:'2000-01-01T00:00:00Z'})[0]==400)
     for name in b['required']:
         bad=copy.deepcopy(data);bad.pop(name,None)
         add('required_'+name,request('POST',a,bad)[0]==400)
+        add('null_required_'+name,request('POST',a,{**data,name:None})[0]==400)
+    for name,schema in b['client_fields'].items():
+        if name not in b['required'] and schema['type']=='string':
+            omitted={**data};omitted.pop(name,None)
+            status,defaulted=request('POST',a,omitted)
+            add('optional_default_'+name,status==201 and isinstance(defaulted,dict) and defaulted.get(name)=='')
     for name,schema in b['client_fields'].items():
         if schema.get('minLength',0)>0:
             add('min_length_'+name,request('POST',a,{**data,name:''})[0]==400)
             add('whitespace_'+name,request('POST',a,{**data,name:'   '})[0]==400)
         if 'maxLength' in schema:
             add('max_length_'+name,request('POST',a,{**data,name:'x'*(schema['maxLength']+1)})[0]==400)
+            add('max_length_boundary_'+name,request('POST',a,{**data,name:'x'*schema['maxLength']})[0]==201)
         if 'minimum' in schema:
             add('minimum_'+name,request('POST',a,{**data,name:schema['minimum']-1})[0]==400)
         if 'maximum' in schema:
@@ -112,4 +120,7 @@ def verify_api(generator):
         values=','.join(literal(v) for v in bad.values())
         code,log=sql(f'''INSERT INTO "{b['entity']}" ({columns}) VALUES ({values});''')
         add('database_max_length_'+name,code!=0 and ('22001' in log or '23514' in log))
+    evidence=generator.root/'api-evidence.json'
+    saved=json.loads(evidence.read_text());saved['checks']=checks
+    evidence.write_text(json.dumps(saved,ensure_ascii=False,indent=2))
     return checks
