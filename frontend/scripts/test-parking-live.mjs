@@ -1,0 +1,44 @@
+import { chromium } from '@playwright/test';
+let stage = 'read private token input';
+let browser;
+try {
+  let input = ''; for await (const chunk of process.stdin) input += chunk;
+  let credentials = JSON.parse(input); input = '';
+  if (!credentials.admin || !credentials.driver) throw new Error('missing input');
+  stage = 'launch browser';
+  browser = await chromium.launch({ headless:true, executablePath:process.env.CHROME_BIN || undefined });
+  const context = await browser.newContext(); const page = await context.newPage();
+  const base = process.env.PARKING_UI_URL || 'http://127.0.0.1:4200';
+  stage = 'open administrative page'; await page.goto(base+'/admin/parking');
+  await page.getByRole('heading',{name:'Обзор парковочных сессий'}).waitFor();
+  stage = 'admin authentication';
+  await page.getByLabel('Токен администратора',{exact:true}).fill(credentials.admin);
+  const adminReply = page.waitForResponse(r => new URL(r.url()).pathname==='/api/admin/sessions' && r.status()===200);
+  await page.getByRole('button',{name:'Подключиться',exact:true}).click(); await adminReply;
+  await page.getByRole('cell',{name:'DEMO-CLIENT-A',exact:false}).first().waitFor();
+  await page.getByRole('cell',{name:'active',exact:false}).first().waitFor();
+  const table = page.getByRole('table',{name:'Парковочные сессии',exact:true});
+  if (await table.locator('tbody tr').count() < 2) throw new Error('missing real sessions');
+  stage = 'filter new free vehicle';
+  const filter = page.getByLabel('Автомобиль: UUID, необязательно',{exact:true});
+  await filter.fill('0f32d15d-2f95-5b5d-b2e2-d9fe14f1f848');
+  const filteredReply=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/admin/sessions' && r.url().includes('vehicleId='));
+  await page.getByRole('button',{name:'Применить фильтр',exact:true}).click();await filteredReply;
+  await page.getByText('Сессии не найдены.',{exact:true}).waitFor();
+  stage='driver denied';await page.getByRole('button',{name:'Отключиться',exact:true}).click();
+  await page.getByLabel('Токен администратора',{exact:true}).fill(credentials.driver);
+  const denied=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/admin/sessions' && r.status()===403);
+  await page.getByRole('button',{name:'Подключиться',exact:true}).click();await denied;
+  await page.getByRole('alert').filter({hasText:'Доступ запрещён'}).waitFor();
+  if (await page.getByRole('table',{name:'Парковочные сессии',exact:true}).count()) throw new Error('denied data remained');
+  stage='no persistent browser storage';
+  const stored=await page.evaluate(()=>({local:localStorage.length,session:sessionStorage.length}));
+  if(stored.local || stored.session)throw new Error('unexpected storage');
+  await page.reload();await page.getByLabel('Токен администратора',{exact:true}).waitFor();
+  if(await page.getByLabel('Токен администратора',{exact:true}).inputValue())throw new Error('token persisted');
+  stage='notes route retained';await page.goto(base+'/notes');await page.getByRole('heading',{name:'Мои заметки'}).waitFor();
+  credentials.admin='';credentials.driver='';
+  console.log('Live browser checks passed: admin list 200, free-vehicle filter empty, driver 403, cleared session/token, notes route retained.');
+} catch {
+  console.error('Live browser check failed at stage: '+stage+'; raw error suppressed to protect credentials.');process.exitCode=1;
+} finally {if(browser)await browser.close();}

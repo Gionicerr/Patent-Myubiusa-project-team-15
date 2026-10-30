@@ -1,0 +1,11 @@
+{
+  "source": "../../examples/parking-contracts-reviewed.json",
+  "sha256": "a406e0d17e1bd9c82a3e62f688acc637940e3a1c75e8f1e2e0307eba7910683e",
+  "operations": [
+    "listVehicles",
+    "listObjects",
+    "listAllSessions"
+  ],
+  "origin": "existing engineering-reviewed v2; unchanged snapshot, not model generation",
+  "hash_format": "UTF-8 text with LF normalized line endings"
+}

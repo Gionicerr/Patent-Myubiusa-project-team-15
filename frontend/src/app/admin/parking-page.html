@@ -1,0 +1,78 @@
+<main class="parking-admin">
+  <header><div><p class="eyebrow">ПАРКОВОЧНЫЙ API · АДМИНИСТРАТОР</p><h1>Обзор парковочных сессий</h1>
+    <p>Просмотр данных сервера. Подтверждение сессии не подтверждает оплату.</p></div>
+    <a mat-stroked-button routerLink="/notes">Заметки</a></header>
+
+  <section class="panel connection" aria-label="Подключение парковочного API">
+    @if (!connected()) {
+      <form (submit)="$event.preventDefault(); connect()">
+        <mat-form-field appearance="outline"><mat-label>Токен администратора</mat-label>
+          <input matInput type="password" autocomplete="off" spellcheck="false" [formControl]="tokenInput">
+          @if (tokenInput.touched && tokenInput.invalid) { <mat-error>Введите токен без пробелов.</mat-error> }
+        </mat-form-field>
+        <button mat-flat-button type="submit">Подключиться</button>
+      </form>
+    } @else {
+      <span role="status">Токен подключён · права проверяются сервером</span>
+      <button mat-stroked-button type="button" (click)="reload()">Обновить всё</button>
+      <button mat-button type="button" (click)="disconnect()">Отключиться</button>
+    }
+    <p class="hint">Токен хранится только в памяти этой страницы и удаляется при отключении, уходе со страницы или перезагрузке. Демонстрационная подмена данных отсутствует.</p>
+  </section>
+
+  @if (!connected()) { <p class="panel" role="status">Для просмотра подключитесь с токеном администратора.</p> }
+  @if (connected()) {
+    <section class="panel" aria-labelledby="sessions-heading" [attr.aria-busy]="sessions().loading">
+      <div class="section-heading"><h2 id="sessions-heading">Сессии</h2><button mat-stroked-button type="button" (click)="loadSessions()" [disabled]="sessions().loading">Обновить сессии</button></div>
+      <form class="filter" (submit)="$event.preventDefault(); applyFilter()">
+        <mat-form-field appearance="outline"><mat-label>Автомобиль: UUID, необязательно</mat-label><input matInput [formControl]="filterInput" autocomplete="off">
+          @if (filterInput.touched && filterInput.invalid) { <mat-error>Укажите корректный UUID или оставьте поле пустым.</mat-error> }
+        </mat-form-field>
+        <button mat-button type="submit">Применить фильтр</button>
+      </form>
+      @if (sessions().loading) { <mat-progress-bar mode="indeterminate" aria-label="Загрузка сессий" /><p role="status">Загружаем сессии…</p> }
+      @if (sessions().error) { <p class="error" role="alert">{{ sessions().error }}</p> }
+      @if (sessions().data; as page) {
+        @if (page.items.length === 0) { <p role="status">Сессии не найдены.</p> }
+        <div class="table-scroll"><table aria-label="Парковочные сессии"><thead><tr><th>Автомобиль</th><th>Парковочный объект</th><th>Начало</th><th>Окончание</th><th>Состояние</th><th>Ревизия</th><th>Оплата подтверждена</th></tr></thead>
+          <tbody>@for (session of page.items; track session.id) { <tr>
+            <td>{{ vehicleName(session.vehicleId) }}<small>{{ session.vehicleId }}</small><small>Сессия: {{ session.id }}</small></td>
+            <td>{{ objectName(session.objectId) }}<small>{{ session.objectId }}</small></td>
+            <td><time [attr.datetime]="session.startedAt">{{ session.startedAt | date:'dd.MM.yyyy, HH:mm:ss' }}</time></td>
+            <td><time [attr.datetime]="session.endAt">{{ session.endAt | date:'dd.MM.yyyy, HH:mm:ss' }}</time></td>
+            <td>{{ session.status }}<small>{{ session.status === 'active' ? 'Активна' : 'Завершена по времени' }}</small></td>
+            <td>{{ session.revision }}</td><td>{{ session.paymentConfirmed ? 'Да' : 'Нет' }}</td>
+          </tr> }</tbody></table></div>
+        <p class="hint">Время отображается в часовом поясе браузера. Если справочная запись ещё не загружена, показывается её UUID.</p>
+      }
+      <mat-paginator aria-label="Страницы сессий" [length]="sessions().data?.total ?? 0" [pageIndex]="sessions().page - 1" [pageSize]="sessions().size" [pageSizeOptions]="[10,25,50,100]" [disabled]="sessions().loading || !!sessions().error" (page)="loadSessions($event)" />
+    </section>
+
+    <section class="panel" aria-labelledby="vehicles-heading" [attr.aria-busy]="vehicles().loading">
+      <div class="section-heading"><h2 id="vehicles-heading">Автомобили</h2><button mat-stroked-button type="button" (click)="loadVehicles()" [disabled]="vehicles().loading">Обновить автомобили</button></div>
+      @if (vehicles().loading) { <mat-progress-bar mode="indeterminate" aria-label="Загрузка автомобилей" /><p role="status">Загружаем автомобили…</p> }
+      @if (vehicles().error) { <p class="error" role="alert">{{ vehicles().error }}</p> }
+      @if (vehicles().data; as page) {
+        @if (page.items.length === 0) { <p role="status">Автомобили не найдены.</p> }
+        <div class="table-scroll"><table aria-label="Автомобили"><thead><tr><th>Номер и название</th><th>UUID</th><th>Владелец</th><th>Источник</th></tr></thead><tbody>
+          @for (vehicle of page.items; track vehicle.id) { <tr><td>{{ vehicle.registration }}<small>{{ vehicle.displayName }}</small></td><td>{{ vehicle.id }}</td><td>{{ vehicle.driverId }}</td><td>{{ vehicle.sourceCity }}</td></tr> }
+        </tbody></table></div>
+      }
+      <mat-paginator aria-label="Страницы автомобилей" [length]="vehicles().data?.total ?? 0" [pageIndex]="vehicles().page - 1" [pageSize]="vehicles().size" [pageSizeOptions]="[10,25,50,100]" [disabled]="vehicles().loading || !!vehicles().error" (page)="loadVehicles($event)" />
+    </section>
+
+    <section class="panel" aria-labelledby="objects-heading" [attr.aria-busy]="objects().loading">
+      <div class="section-heading"><h2 id="objects-heading">Парковочные объекты · Санкт-Петербург</h2><button mat-stroked-button type="button" (click)="loadObjects()" [disabled]="objects().loading">Обновить объекты</button></div>
+      @if (objects().loading) { <mat-progress-bar mode="indeterminate" aria-label="Загрузка объектов" /><p role="status">Загружаем объекты…</p> }
+      @if (objects().error) { <p class="error" role="alert">{{ objects().error }}</p> }
+      @if (objects().data; as page) {
+        @if (page.items.length === 0) { <p role="status">Парковочные объекты не найдены.</p> }
+        <div class="table-scroll"><table aria-label="Парковочные объекты"><thead><tr><th>Идентификатор источника</th><th>Название</th><th>UUID</th><th>Исходные параметры</th></tr></thead><tbody>
+          @for (object of page.items; track object.id) { <tr><td>{{ object.externalZoneId }}</td><td>{{ object.displayName }}</td><td>{{ object.id }}</td><td>price: {{ object.price }}<small>{{ object.priceDescription }}</small></td></tr> }
+        </tbody></table></div>
+        <p class="hint">Объекты источника не считаются подтверждёнными тарифными зонами. Число price показано без пересчёта и трактовки единиц.</p>
+      }
+      <mat-paginator aria-label="Страницы объектов" [length]="objects().data?.total ?? 0" [pageIndex]="objects().page - 1" [pageSize]="objects().size" [pageSizeOptions]="[10,25,50,100]" [disabled]="objects().loading || !!objects().error" (page)="loadObjects($event)" />
+    </section>
+  }
+</main>
