@@ -73,19 +73,61 @@ def validate_contract(design, analysis):
         except Exception:
             issues.append(f'{label}: invalid JSON Schema')
             return
-        def walk(value):
+        def walk(value, path, require_type=True, inherited=None, predicate=False):
+            # Only schema-bearing keywords contain schemas; examples/const and
+            # keyword maps are data, not independently typed value descriptions.
             if isinstance(value, dict):
+                context = inherited if isinstance(inherited, dict) else {}
+                if require_type and not any(k in value or k in context for k in
+                        ('type', '$ref', 'oneOf', 'anyOf', 'allOf', 'enum', 'const')):
+                    issues.append(f'{path}: schema must declare a machine-readable type/reference')
                 ref = value.get('$ref')
                 if ref is not None and (not isinstance(ref, str) or not ref.startswith('#/components/schemas/') or ref.split('/')[-1] not in all_schemas):
-                    issues.append(f'{label}: unresolved or external schema reference')
-                for item in value.values(): walk(item)
-            elif isinstance(value, list):
-                for item in value: walk(item)
-        walk(schema)
-        if schema.get('type') == 'array' and 'items' not in schema and 'prefixItems' not in schema:
-            issues.append(f'{label}: array items must be typed')
-        if not any(k in schema for k in ('type', '$ref', 'oneOf', 'anyOf', 'allOf', 'enum', 'const')):
-            issues.append(f'{label}: schema must declare a machine-readable type/reference')
+                    issues.append(f'{path}: unresolved or external schema reference')
+                if value.get('additionalProperties') is False and value.get('type', context.get('type')) == 'object':
+                    for name in value.get('required', []):
+                        if name not in value.get('properties', {}) and not any(
+                                re.search(pattern, name) for pattern in value.get('patternProperties', {})):
+                            issues.append(f'{path}.required: {name!r} is required but forbidden by additionalProperties=false')
+                types = value.get('type', [])
+                if (types == 'array' or isinstance(types, list) and 'array' in types) and not any(
+                        k in value or k in context for k in ('items', 'prefixItems', '$ref', 'allOf', 'anyOf', 'oneOf')):
+                    issues.append(f'{path}: array items must be typed')
+                inherited = context
+                context = {**context, **value}
+                properties = dict(inherited.get('properties', {}))
+                for branch in value.get('allOf', []):
+                    if isinstance(branch, dict):
+                        for name, child in branch.get('properties', {}).items():
+                            if isinstance(child, dict):
+                                previous = properties.get(name, {})
+                                properties[name] = {**(previous if isinstance(previous, dict) else {}), **child}
+                for name, child in value.get('properties', {}).items():
+                    if isinstance(child, dict):
+                        previous = properties.get(name, {})
+                        properties[name] = {**(previous if isinstance(previous, dict) else {}), **child}
+                context['properties'] = properties
+                for keyword in ('properties', 'patternProperties', '$defs', 'definitions'):
+                    for name, child in value.get(keyword, {}).items():
+                        previous = context.get(keyword, {}).get(name)
+                        walk(child, f'{path}.{keyword}.{name}', not predicate, previous, predicate)
+                for keyword in ('items', 'additionalProperties', 'contains', 'propertyNames',
+                                'unevaluatedProperties', 'unevaluatedItems', 'contentSchema'):
+                    if keyword in value:
+                        walk(value[keyword], f'{path}.{keyword}', not predicate, inherited.get(keyword), predicate)
+                for index, child in enumerate(value.get('prefixItems', [])):
+                    previous = inherited.get('prefixItems', [])
+                    walk(child, f'{path}.prefixItems[{index}]', not predicate,
+                         previous[index] if index < len(previous) else None, predicate)
+                for keyword in ('oneOf', 'anyOf', 'allOf'):
+                    for index, child in enumerate(value.get(keyword, [])):
+                        walk(child, f'{path}.{keyword}[{index}]', False, context, predicate)
+                for keyword in ('if', 'then', 'else', 'not'):
+                    if keyword in value:
+                        walk(value[keyword], f'{path}.{keyword}', False, context, predicate or keyword in ('if', 'not'))
+                for name, child in value.get('dependentSchemas', {}).items():
+                    walk(child, f'{path}.dependentSchemas.{name}', False, context)
+        walk(schema, label)
     for entity in design['data_model']:
         check_schema(entity_schema(entity), entity['name'])
         fields = {f['name']: f for f in entity['fields']}

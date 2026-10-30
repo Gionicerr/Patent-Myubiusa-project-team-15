@@ -10,9 +10,20 @@ from app.artifacts import render_documents,write_files
 from app.documentation import with_contents
 from app.demo import REQUIREMENTS,fixture
 from adapt_documentation import adapt_saved_documents
+from check_documentation import check_preserved_hashes
 
 
 class DocumentationTests(unittest.TestCase):
+    def test_saved_hash_paths_support_both_separators(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);file=root/'runs'/'stage2'/'artifact-manifest.json'
+            file.parent.mkdir(parents=True);file.write_bytes(b'unchanged contract')
+            digest=hashlib.sha256(file.read_bytes()).hexdigest()
+            for name in ('runs/stage2/artifact-manifest.json',r'runs\stage2\artifact-manifest.json'):
+                with self.subTest(name=name):
+                    self.assertEqual(check_preserved_hashes(root,{name:digest}),[])
+                    self.assertEqual(check_preserved_hashes(root,{name:'0'*64}),['Preserved source changed: '+name])
+
     def test_controls_preserve_legacy_data_and_state_missing_approvals(self):
         a,d=fixture();before=copy.deepcopy((a,d));report={'metrics':{'model_calls':0}}
         docs=render_documents(REQUIREMENTS,a,d,{},report)

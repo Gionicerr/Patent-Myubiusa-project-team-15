@@ -40,6 +40,16 @@ def check_links(paths):
     return checked,issues
 
 
+def check_preserved_hashes(root, hashes):
+    issues=[]
+    for name,digest in hashes.items():
+        relative_name=name.replace('\\','/')
+        if relative_name in ('app/artifacts.py','README.md'):continue
+        if hashlib.sha256((root/relative_name).read_bytes()).hexdigest()!=digest:
+            issues.append('Preserved source changed: '+name)
+    return issues
+
+
 def audit():
     standards=ROOT/'resources/standards/russtech';documents=ROOT/'docs/stage2';checks=[]
     add=lambda name,issues,**extra:checks.append({'name':name,'status':'failed' if issues else 'passed','issues':issues,**extra})
@@ -75,10 +85,8 @@ def audit():
     add('partial_api_example_matches_existing_contract',issues,application_method_executed=False)
     baseline=ROOT/'runs/documentation-standards/before-hashes.json'
     if baseline.exists():
-        hashes=json.loads(baseline.read_text(encoding='utf-8'));issues=[]
-        for name,digest in hashes.items():
-            if name.replace('\\','/') in ('app/artifacts.py','README.md'):continue
-            if hashlib.sha256((ROOT/name).read_bytes()).hexdigest()!=digest:issues.append('Preserved source changed: '+name)
+        hashes=json.loads(baseline.read_text(encoding='utf-8'))
+        issues=check_preserved_hashes(ROOT,hashes)
         add('saved_stage2_and_schema_preservation',issues)
     return {'status':'passed' if all(x['status']=='passed' for x in checks) else 'failed','scope':'documentation_preparation_only','checks':checks,
             'model_requests':0,'vm_access':False,'server_restarted':False,'template_compliance':'partial; missing data and future tasks explicitly recorded','limitations':['Does not certify full corporate approval, operational readiness or application behaviour.']}

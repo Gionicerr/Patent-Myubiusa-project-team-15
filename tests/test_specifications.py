@@ -48,6 +48,43 @@ class TypedContractTests(unittest.TestCase):
             d=copy.deepcopy(self.design);mutate(d)
             with self.subTest(design=d):self.assertTrue(validate_design(d,self.analysis))
 
+    def test_closed_object_cannot_require_a_forbidden_property(self):
+        self.design['schemas']['Broken']={'type':'object','properties':{'id':{'type':'string'}},
+            'required':['ghost'],'additionalProperties':False}
+        issues=validate_contract(self.design,self.analysis)
+        self.assertTrue(any('Broken.required' in x and 'ghost' in x and 'forbidden' in x for x in issues),issues)
+
+    def test_nested_value_schemas_must_be_typed(self):
+        cases=[({'type':'object','properties':{'payload':{}},'required':['payload']},'properties.payload'),
+               ({'type':'array','items':{'type':'object','properties':{'payload':{}}}},'items.properties.payload'),
+               ({'allOf':[{'type':'object','properties':{'payload':{}}}]},'allOf[0].properties.payload'),
+               ({'type':'object','properties':{'payload':{'type':'array'}}},'properties.payload')]
+        for schema,location in cases:
+            with self.subTest(schema=schema):
+                self.design['schemas']['Broken']=schema
+                issues=validate_contract(self.design,self.analysis)
+                self.assertTrue(any('Broken.'+location in x for x in issues),issues)
+
+    def test_compositions_conditions_and_schema_helpers_remain_supported(self):
+        schemas=[
+            {'oneOf':[{'$ref':'#/components/schemas/Problem'},{'type':'null'}]},
+            {'anyOf':[{'type':'string'},{'type':'null'}]},
+            {'allOf':[{'type':'object','properties':{'id':{'type':'string'}}},
+                      {'properties':{'id':{'minLength':1}},'required':['id']}]},
+            {'type':'object','properties':{'state':{'enum':['new','done']},'payload':{'type':['string','null']}},
+             'if':{'properties':{'state':{'const':'done'}},'required':['state']},
+             'then':{'required':['payload'],'properties':{'payload':{'minLength':1}}},
+             'else':{'properties':{'payload':{}}}},
+            {'type':'array','prefixItems':[{'const':'header'},{'type':'integer'}],'items':False},
+            {'type':'object','patternProperties':{'^x-':{'type':'string'}},'required':['x-id'],'additionalProperties':False},
+            {'type':'object','properties':{'payload':{'type':'array','items':{'enum':[1,2,None]}}},
+             'examples':[{'$ref':'ordinary example data'}]},
+        ]
+        for schema in schemas:
+            with self.subTest(schema=schema):
+                self.design['schemas']['Valid']=schema
+                self.assertEqual(validate_contract(self.design,self.analysis),[])
+
     def test_entity_links_indexes_and_primary_keys(self):
         mutations=[lambda d:d['data_model'][0]['relations'].append({'field':'id','target_entity':'Missing','target_field':'id','on_delete':'RESTRICT'}),lambda d:d['data_model'][0]['indexes'][0].update(fields=['missing']),lambda d:d['data_model'][0]['primary_key'].append('missing'),lambda d:d['data_model'][0]['fields'].append(copy.deepcopy(d['data_model'][0]['fields'][0])),lambda d:d['data_model'][0]['indexes'][0].update(predicate={'field':'missing','operator':'eq','value':'new'})]
         for mutate in mutations:
