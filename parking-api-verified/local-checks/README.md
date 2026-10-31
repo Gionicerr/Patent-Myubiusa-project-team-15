@@ -1,0 +1,1 @@
+114 local tests passed, including 34 server generator tests. Provider replies and HTTP429 printed by unit tests are mocks. Real organizer calls: 2 successful requests, no 429, no model repairs. See FINAL_RESULT.json and per-call metrics.

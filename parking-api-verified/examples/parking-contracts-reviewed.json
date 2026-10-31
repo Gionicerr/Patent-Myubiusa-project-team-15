@@ -1,0 +1,5730 @@
+{
+  "schema_version": "2.0",
+  "boundaries": "Спецификация парковочного помощника Санкт-Петербурга, сервер и БД; карта и PWA водителя, административный web. Реальных платежей нет. Это контракт, не реализованное приложение.",
+  "user_flows": [
+    {
+      "role": "Водитель",
+      "steps": [
+        "Получить данные только в разрешённой области доступа.",
+        "Открыть экран, увидеть загрузку/ошибку/данные.",
+        "Выполнить явное действие; сервер проверяет права, схему и идемпотентность."
+      ],
+      "requirement_ids": [
+        "FR-015"
+      ]
+    },
+    {
+      "role": "Администратор",
+      "steps": [
+        "Получить данные только в разрешённой области доступа.",
+        "Открыть экран, увидеть загрузку/ошибку/данные.",
+        "Выполнить явное действие; сервер проверяет права, схему и идемпотентность."
+      ],
+      "requirement_ids": [
+        "FR-014"
+      ]
+    }
+  ],
+  "components": [
+    {
+      "name": "DriverAdminPwa",
+      "responsibility": "Мобильный и административный интерфейсы с картой, состояниями и UI Kit",
+      "technology": "Angular 20.1.6, PWA, совместимый Angular Material; версия UI Kit фиксируется при реализации"
+    },
+    {
+      "name": "ApplicationApi",
+      "responsibility": "Права, позиции, matching, сессии, события, Clock и демонстрационный PaymentAdapter",
+      "technology": "ASP.NET Core .NET 10 C#14"
+    },
+    {
+      "name": "Persistence",
+      "responsibility": "Сохранение исходных объектов, геометрии, сессий, маршрутов, событий и идемпотентности",
+      "technology": "PostgreSQL17.9 + PostGIS (версия сервера открытый вопрос); транзакции и фоновые задачи, Kafka не требуется"
+    }
+  ],
+  "data_model": [
+    {
+      "name": "Account",
+      "description": "Роль определяется доверенной идентификацией; пароли в предметной модели не хранятся.",
+      "fields": [
+        {
+          "name": "id",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "Внутренний UUID",
+          "required": true
+        },
+        {
+          "name": "displayName",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": "displayName",
+          "required": true
+        },
+        {
+          "name": "role",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "driver",
+              "admin"
+            ]
+          },
+          "description": "role",
+          "required": true
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "relations": [],
+      "indexes": []
+    },
+    {
+      "name": "Vehicle",
+      "description": "Vehicle",
+      "fields": [
+        {
+          "name": "id",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "Внутренний UUID",
+          "required": true
+        },
+        {
+          "name": "driverId",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "driverId",
+          "required": true
+        },
+        {
+          "name": "registration",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "description": "registration",
+          "required": true
+        },
+        {
+          "name": "displayName",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": "displayName",
+          "required": true
+        },
+        {
+          "name": "sourceCity",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "spb",
+              "moscow_partner"
+            ],
+            "default": "spb"
+          },
+          "required": true,
+          "description": "Изолированный источник сопоставления; для основного кейса spb"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "relations": [
+        {
+          "field": "driverId",
+          "target_entity": "Account",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ux_vehicle_registration",
+          "fields": [
+            "registration"
+          ],
+          "unique": true,
+          "method": "btree"
+        },
+        {
+          "name": "ix_vehicle_driver",
+          "fields": [
+            "driverId"
+          ],
+          "unique": false,
+          "method": "btree"
+        }
+      ]
+    },
+    {
+      "name": "ImportBatch",
+      "description": "ImportBatch",
+      "fields": [
+        {
+          "name": "id",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "Внутренний UUID",
+          "required": true
+        },
+        {
+          "name": "city",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "description": "city",
+          "required": true
+        },
+        {
+          "name": "sha256",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "description": "sha256",
+          "required": true
+        },
+        {
+          "name": "createdAt",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": "createdAt",
+          "required": true
+        },
+        {
+          "name": "status",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "completed",
+              "failed"
+            ]
+          },
+          "description": "status",
+          "required": true
+        },
+        {
+          "name": "accepted",
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "accepted",
+          "required": true
+        },
+        {
+          "name": "quarantined",
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "quarantined",
+          "required": true
+        },
+        {
+          "name": "issues",
+          "schema": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "row": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "externalZoneId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "code": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                }
+              },
+              "required": [
+                "row",
+                "externalZoneId",
+                "code",
+                "description"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "description": "issues",
+          "required": true
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "name": "ux_import_hash",
+          "fields": [
+            "city",
+            "sha256"
+          ],
+          "unique": true,
+          "method": "btree"
+        }
+      ]
+    },
+    {
+      "name": "ParkingObject",
+      "description": "Объект источника, НЕ подтверждённая тарифная зона. Исходные тарифы и WKT сохраняются; невалидный объект исключается из matching.",
+      "fields": [
+        {
+          "name": "id",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "Внутренний UUID",
+          "required": true
+        },
+        {
+          "name": "city",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "description": "city",
+          "required": true
+        },
+        {
+          "name": "externalZoneId",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": "Исходное поле источника без пересчёта",
+          "required": true
+        },
+        {
+          "name": "displayName",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "description": "Исходное поле источника без пересчёта",
+          "required": true
+        },
+        {
+          "name": "geometry",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200000
+          },
+          "description": "Исходное поле источника без пересчёта",
+          "required": true
+        },
+        {
+          "name": "price",
+          "schema": {
+            "type": "integer"
+          },
+          "description": "Исходное поле источника без пересчёта",
+          "required": true
+        },
+        {
+          "name": "priceDescription",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "description": "Исходное поле источника без пересчёта",
+          "required": true
+        },
+        {
+          "name": "minTime",
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Исходное поле источника без пересчёта",
+          "required": true
+        },
+        {
+          "name": "timeStep",
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Исходное поле источника без пересчёта",
+          "required": true
+        },
+        {
+          "name": "tariff",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "hasHolidays": {
+                "type": "boolean"
+              },
+              "periods": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "to": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "duration": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "price": {
+                      "type": "integer"
+                    },
+                    "type": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    }
+                  },
+                  "required": [
+                    "from",
+                    "to",
+                    "duration",
+                    "price",
+                    "type"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "hasHolidays",
+              "periods"
+            ],
+            "additionalProperties": false
+          },
+          "description": "Исходное поле источника без пересчёта",
+          "required": true
+        },
+        {
+          "name": "entityState",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "description": "Исходное поле источника без пересчёта",
+          "required": true
+        },
+        {
+          "name": "initDate",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": "Исходное поле источника без пересчёта",
+          "required": true
+        },
+        {
+          "name": "lastSyncedAt",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": "Исходное поле источника без пересчёта",
+          "required": true
+        },
+        {
+          "name": "importBatchId",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "importBatchId",
+          "required": true
+        },
+        {
+          "name": "geometryGeoJson",
+          "schema": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Geometry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "x-db-type": "geometry(Geometry,4326)",
+            "x-derived-from": "original geometry WKT; null for quarantine"
+          },
+          "description": "geometryGeoJson",
+          "required": false
+        },
+        {
+          "name": "geometryState",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "quarantined"
+            ]
+          },
+          "description": "geometryState",
+          "required": true
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "relations": [
+        {
+          "field": "importBatchId",
+          "target_entity": "ImportBatch",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ux_source_object",
+          "fields": [
+            "city",
+            "externalZoneId"
+          ],
+          "unique": true,
+          "method": "btree"
+        },
+        {
+          "name": "ix_object_geometry",
+          "fields": [
+            "geometryGeoJson"
+          ],
+          "unique": false,
+          "method": "gist"
+        },
+        {
+          "name": "ix_object_state",
+          "fields": [
+            "city",
+            "entityState"
+          ],
+          "unique": false,
+          "method": "btree"
+        }
+      ]
+    },
+    {
+      "name": "Route",
+      "description": "Route",
+      "fields": [
+        {
+          "name": "id",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "Внутренний UUID",
+          "required": true
+        },
+        {
+          "name": "vehicleId",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "vehicleId",
+          "required": true
+        },
+        {
+          "name": "startedAt",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": "startedAt",
+          "required": true
+        },
+        {
+          "name": "endedAt",
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "description": "endedAt",
+          "required": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "relations": [
+        {
+          "field": "vehicleId",
+          "target_entity": "Vehicle",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ix_route_vehicle_time",
+          "fields": [
+            "vehicleId",
+            "startedAt"
+          ],
+          "unique": false,
+          "method": "btree"
+        }
+      ]
+    },
+    {
+      "name": "PositionObservation",
+      "description": "PositionObservation",
+      "fields": [
+        {
+          "name": "id",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "Внутренний UUID",
+          "required": true
+        },
+        {
+          "name": "vehicleId",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "vehicleId",
+          "required": true
+        },
+        {
+          "name": "routeId",
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "description": "routeId",
+          "required": false
+        },
+        {
+          "name": "sourceObservationId",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": "sourceObservationId",
+          "required": true
+        },
+        {
+          "name": "observedAt",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": "observedAt",
+          "required": true
+        },
+        {
+          "name": "receivedAt",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": "receivedAt",
+          "required": true
+        },
+        {
+          "name": "longitude",
+          "schema": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": -180,
+            "maximum": 180
+          },
+          "description": "longitude",
+          "required": false
+        },
+        {
+          "name": "latitude",
+          "schema": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": -90,
+            "maximum": 90
+          },
+          "description": "latitude",
+          "required": false
+        },
+        {
+          "name": "accuracyMeters",
+          "schema": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "description": "accuracyMeters",
+          "required": false
+        },
+        {
+          "name": "locationState",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "available",
+              "no_coordinates",
+              "technical_error"
+            ]
+          },
+          "description": "locationState",
+          "required": true
+        },
+        {
+          "name": "errorCode",
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": "errorCode",
+          "required": false
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "relations": [
+        {
+          "field": "vehicleId",
+          "target_entity": "Vehicle",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        },
+        {
+          "field": "routeId",
+          "target_entity": "Route",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ux_observation",
+          "fields": [
+            "vehicleId",
+            "sourceObservationId"
+          ],
+          "unique": true,
+          "method": "btree"
+        },
+        {
+          "name": "ix_position_vehicle_time",
+          "fields": [
+            "vehicleId",
+            "observedAt"
+          ],
+          "unique": false,
+          "method": "btree"
+        }
+      ]
+    },
+    {
+      "name": "ParkingSession",
+      "description": "ParkingSession",
+      "fields": [
+        {
+          "name": "id",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "Внутренний UUID",
+          "required": true
+        },
+        {
+          "name": "vehicleId",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "vehicleId",
+          "required": true
+        },
+        {
+          "name": "objectId",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "objectId",
+          "required": true
+        },
+        {
+          "name": "routeId",
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "description": "routeId",
+          "required": false
+        },
+        {
+          "name": "startedAt",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": "startedAt",
+          "required": true
+        },
+        {
+          "name": "endAt",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": "endAt",
+          "required": true
+        },
+        {
+          "name": "status",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "active",
+              "expired"
+            ]
+          },
+          "description": "status",
+          "required": true
+        },
+        {
+          "name": "paymentConfirmed",
+          "schema": {
+            "type": "boolean",
+            "const": false
+          },
+          "description": "paymentConfirmed",
+          "required": true
+        },
+        {
+          "name": "revision",
+          "schema": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": "revision",
+          "required": true
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "relations": [
+        {
+          "field": "vehicleId",
+          "target_entity": "Vehicle",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        },
+        {
+          "field": "objectId",
+          "target_entity": "ParkingObject",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        },
+        {
+          "field": "routeId",
+          "target_entity": "Route",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ux_one_active_session",
+          "fields": [
+            "vehicleId"
+          ],
+          "unique": true,
+          "method": "btree",
+          "predicate": {
+            "field": "status",
+            "operator": "eq",
+            "value": "active"
+          }
+        },
+        {
+          "name": "ix_session_expiry",
+          "fields": [
+            "status",
+            "endAt"
+          ],
+          "unique": false,
+          "method": "btree"
+        },
+        {
+          "name": "ix_session_vehicle_time",
+          "fields": [
+            "vehicleId",
+            "startedAt"
+          ],
+          "unique": false,
+          "method": "btree"
+        }
+      ]
+    },
+    {
+      "name": "ParkingEvent",
+      "description": "ParkingEvent",
+      "fields": [
+        {
+          "name": "id",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "Внутренний UUID",
+          "required": true
+        },
+        {
+          "name": "type",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "entry",
+              "exit",
+              "object_changed",
+              "session_started",
+              "session_confirmed",
+              "warning_10_minutes",
+              "session_expired",
+              "location_error"
+            ]
+          },
+          "description": "type",
+          "required": true
+        },
+        {
+          "name": "occurredAt",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": "occurredAt",
+          "required": true
+        },
+        {
+          "name": "vehicleId",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "vehicleId",
+          "required": true
+        },
+        {
+          "name": "observationId",
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "description": "observationId",
+          "required": false
+        },
+        {
+          "name": "objectId",
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "description": "objectId",
+          "required": false
+        },
+        {
+          "name": "previousObjectId",
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "description": "previousObjectId",
+          "required": false
+        },
+        {
+          "name": "sessionId",
+          "schema": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "description": "sessionId",
+          "required": false
+        },
+        {
+          "name": "dedupKey",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "description": "dedupKey",
+          "required": true
+        },
+        {
+          "name": "details",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 100
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          },
+          "description": "details",
+          "required": true
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "relations": [
+        {
+          "field": "vehicleId",
+          "target_entity": "Vehicle",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        },
+        {
+          "field": "observationId",
+          "target_entity": "PositionObservation",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        },
+        {
+          "field": "objectId",
+          "target_entity": "ParkingObject",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        },
+        {
+          "field": "previousObjectId",
+          "target_entity": "ParkingObject",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        },
+        {
+          "field": "sessionId",
+          "target_entity": "ParkingSession",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ux_event_dedup",
+          "fields": [
+            "dedupKey"
+          ],
+          "unique": true,
+          "method": "btree"
+        },
+        {
+          "name": "ix_event_vehicle_time",
+          "fields": [
+            "vehicleId",
+            "occurredAt"
+          ],
+          "unique": false,
+          "method": "btree"
+        }
+      ],
+      "constraints": {
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "enum": [
+                    "session_started",
+                    "session_confirmed",
+                    "warning_10_minutes",
+                    "session_expired"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "sessionId"
+              ],
+              "properties": {
+                "sessionId": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "enum": [
+                    "entry",
+                    "object_changed"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "objectId"
+              ],
+              "properties": {
+                "objectId": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "enum": [
+                    "exit",
+                    "object_changed"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "previousObjectId"
+              ],
+              "properties": {
+                "previousObjectId": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Notification",
+      "description": "Notification",
+      "fields": [
+        {
+          "name": "id",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "Внутренний UUID",
+          "required": true
+        },
+        {
+          "name": "vehicleId",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "vehicleId",
+          "required": true
+        },
+        {
+          "name": "eventId",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "eventId",
+          "required": true
+        },
+        {
+          "name": "message",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "description": "message",
+          "required": true
+        },
+        {
+          "name": "createdAt",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": "createdAt",
+          "required": true
+        },
+        {
+          "name": "kind",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "warning",
+              "check_payment",
+              "location_error"
+            ]
+          },
+          "description": "kind",
+          "required": true
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "relations": [
+        {
+          "field": "vehicleId",
+          "target_entity": "Vehicle",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        },
+        {
+          "field": "eventId",
+          "target_entity": "ParkingEvent",
+          "target_field": "id",
+          "on_delete": "RESTRICT"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "ux_notification_event",
+          "fields": [
+            "eventId"
+          ],
+          "unique": true,
+          "method": "btree"
+        },
+        {
+          "name": "ix_notification_vehicle",
+          "fields": [
+            "vehicleId",
+            "createdAt"
+          ],
+          "unique": false,
+          "method": "btree"
+        }
+      ]
+    },
+    {
+      "name": "MatchConfiguration",
+      "description": "MatchConfiguration",
+      "fields": [
+        {
+          "name": "id",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "Внутренний UUID",
+          "required": true
+        },
+        {
+          "name": "enterMeters",
+          "schema": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1000,
+            "default": 25
+          },
+          "description": "Проектный конфигурируемый порог; не требование заказчика",
+          "required": true
+        },
+        {
+          "name": "exitMeters",
+          "schema": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 2000,
+            "default": 40
+          },
+          "description": "Проектный конфигурируемый порог; не требование заказчика",
+          "required": true
+        },
+        {
+          "name": "confirmSamples",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "default": 3
+          },
+          "description": "Проектный конфигурируемый порог; не требование заказчика",
+          "required": true
+        },
+        {
+          "name": "holdSeconds",
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 300,
+            "default": 15
+          },
+          "description": "Проектный конфигурируемый порог; не требование заказчика",
+          "required": true
+        },
+        {
+          "name": "maxAccuracyMeters",
+          "schema": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1000,
+            "default": 50
+          },
+          "description": "Проектный конфигурируемый порог; не требование заказчика",
+          "required": true
+        },
+        {
+          "name": "tieMeters",
+          "schema": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "default": 5
+          },
+          "description": "Проектный конфигурируемый порог; не требование заказчика",
+          "required": true
+        },
+        {
+          "name": "city",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "description": "city",
+          "required": true
+        },
+        {
+          "name": "maxObservationAgeSeconds",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600,
+            "default": 30
+          },
+          "required": true,
+          "description": "Проектный конфигурируемый порог времени, не подтверждённый норматив"
+        },
+        {
+          "name": "futureToleranceSeconds",
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 60,
+            "default": 5
+          },
+          "required": true,
+          "description": "Проектный конфигурируемый порог времени, не подтверждённый норматив"
+        }
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "name": "ux_matching_city",
+          "fields": [
+            "city"
+          ],
+          "unique": true,
+          "method": "btree"
+        }
+      ]
+    }
+  ],
+  "schemas": {
+    "Geometry": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "Point"
+            },
+            "coordinates": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                },
+                {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "LineString"
+            },
+            "coordinates": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "minItems": 2
+            }
+          },
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "MultiLineString"
+            },
+            "coordinates": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number",
+                      "minimum": -180,
+                      "maximum": 180
+                    },
+                    {
+                      "type": "number",
+                      "minimum": -90,
+                      "maximum": 90
+                    }
+                  ],
+                  "items": false,
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "minItems": 2
+              }
+            }
+          },
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "Polygon"
+            },
+            "coordinates": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number",
+                      "minimum": -180,
+                      "maximum": 180
+                    },
+                    {
+                      "type": "number",
+                      "minimum": -90,
+                      "maximum": 90
+                    }
+                  ],
+                  "items": false,
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "minItems": 4
+              }
+            }
+          },
+          "required": [
+            "type",
+            "coordinates"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "GeometryCollection"
+            },
+            "geometries": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Geometry"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "geometries"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RawParkingObject": {
+      "type": "object",
+      "properties": {
+        "externalZoneId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "geometry": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200000
+        },
+        "price": {
+          "type": "integer"
+        },
+        "priceDescription": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "minTime": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "timeStep": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tariff": {
+          "type": "object",
+          "properties": {
+            "hasHolidays": {
+              "type": "boolean"
+            },
+            "periods": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "to": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "duration": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "price": {
+                    "type": "integer"
+                  },
+                  "type": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "from",
+                  "to",
+                  "duration",
+                  "price",
+                  "type"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "hasHolidays",
+            "periods"
+          ],
+          "additionalProperties": false
+        },
+        "entityState": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50
+        },
+        "initDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lastSyncedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "externalZoneId",
+        "displayName",
+        "geometry",
+        "price",
+        "priceDescription",
+        "minTime",
+        "timeStep",
+        "tariff",
+        "entityState",
+        "initDate",
+        "lastSyncedAt"
+      ],
+      "additionalProperties": false
+    },
+    "TariffPeriod": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "to": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "duration": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "price": {
+          "type": "integer"
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "duration",
+        "price",
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "Tariff": {
+      "type": "object",
+      "properties": {
+        "hasHolidays": {
+          "type": "boolean"
+        },
+        "periods": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "to": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "duration": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "price": {
+                "type": "integer"
+              },
+              "type": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              }
+            },
+            "required": [
+              "from",
+              "to",
+              "duration",
+              "price",
+              "type"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "hasHolidays",
+        "periods"
+      ],
+      "additionalProperties": false
+    },
+    "Problem": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "traceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "traceId"
+      ],
+      "additionalProperties": false
+    },
+    "PositionInput": {
+      "type": "object",
+      "properties": {
+        "sourceObservationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "routeId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "observedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "accuracyMeters": {
+          "type": "number",
+          "minimum": 0
+        },
+        "locationState": {
+          "type": "string",
+          "enum": [
+            "available",
+            "no_coordinates",
+            "technical_error"
+          ]
+        },
+        "errorCode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        }
+      },
+      "required": [
+        "sourceObservationId",
+        "observedAt",
+        "locationState"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "locationState": {
+                "const": "available"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "longitude",
+              "latitude",
+              "accuracyMeters"
+            ]
+          }
+        }
+      ]
+    },
+    "MatchResult": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "matched",
+            "no_match",
+            "no_coordinates",
+            "technical_error",
+            "ambiguous",
+            "stale"
+          ]
+        },
+        "objectId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "externalZoneId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "distanceMeters": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "calculatedCorridor": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/Geometry"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isAuthoritativeBoundary": {
+          "type": "boolean",
+          "const": false
+        },
+        "candidateIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "sessionPreserved": {
+          "type": "boolean",
+          "const": true
+        },
+        "sourceCity": {
+          "type": "string",
+          "enum": [
+            "spb",
+            "moscow_partner"
+          ],
+          "default": "spb"
+        }
+      },
+      "required": [
+        "state",
+        "objectId",
+        "externalZoneId",
+        "distanceMeters",
+        "calculatedCorridor",
+        "isAuthoritativeBoundary",
+        "candidateIds",
+        "sessionPreserved",
+        "sourceCity"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "matched"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "objectId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "externalZoneId": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "no_match",
+                  "no_coordinates",
+                  "technical_error"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "objectId": {
+                "type": "null"
+              },
+              "externalZoneId": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "SessionInput": {
+      "type": "object",
+      "properties": {
+        "objectId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "endAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "objectId",
+        "endAt",
+        "idempotencyKey"
+      ],
+      "additionalProperties": false
+    },
+    "SessionConfirmation": {
+      "type": "object",
+      "properties": {
+        "endAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "endAt",
+        "expectedRevision",
+        "idempotencyKey"
+      ],
+      "additionalProperties": false
+    },
+    "PaymentLink": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "demo",
+            "official_redirect",
+            "unavailable"
+          ]
+        },
+        "paymentConfirmed": {
+          "type": "boolean",
+          "const": false
+        }
+      },
+      "required": [
+        "url",
+        "mode",
+        "paymentConfirmed"
+      ],
+      "additionalProperties": false
+    },
+    "ImportInput": {
+      "type": "object",
+      "properties": {
+        "city": {
+          "type": "string",
+          "enum": [
+            "spb",
+            "moscow_partner"
+          ]
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "objects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/RawParkingObject"
+          },
+          "maxItems": 20000,
+          "minItems": 1
+        }
+      },
+      "required": [
+        "city",
+        "sha256",
+        "objects"
+      ],
+      "additionalProperties": false
+    },
+    "ClockAdvance": {
+      "type": "object",
+      "properties": {
+        "seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 86400
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "seconds",
+        "idempotencyKey"
+      ],
+      "additionalProperties": false
+    },
+    "ClockState": {
+      "type": "object",
+      "properties": {
+        "now": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "real",
+            "demo"
+          ]
+        }
+      },
+      "required": [
+        "now",
+        "mode"
+      ],
+      "additionalProperties": false
+    },
+    "MatchConfigurationInput": {
+      "type": "object",
+      "properties": {
+        "enterMeters": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000,
+          "default": 25
+        },
+        "exitMeters": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 2000,
+          "default": 40
+        },
+        "confirmSamples": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 3
+        },
+        "holdSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300,
+          "default": 15
+        },
+        "maxAccuracyMeters": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000,
+          "default": 50
+        },
+        "tieMeters": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 5
+        },
+        "maxObservationAgeSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600,
+          "default": 30
+        },
+        "futureToleranceSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60,
+          "default": 5
+        }
+      },
+      "required": [
+        "enterMeters",
+        "exitMeters",
+        "confirmSamples",
+        "holdSeconds",
+        "maxAccuracyMeters",
+        "tieMeters",
+        "maxObservationAgeSeconds",
+        "futureToleranceSeconds"
+      ],
+      "additionalProperties": false
+    },
+    "AccountPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Account"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "pageSize",
+        "total"
+      ],
+      "additionalProperties": false
+    },
+    "VehiclePage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Vehicle"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "pageSize",
+        "total"
+      ],
+      "additionalProperties": false
+    },
+    "ImportBatchPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/ImportBatch"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "pageSize",
+        "total"
+      ],
+      "additionalProperties": false
+    },
+    "ParkingObjectPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/ParkingObject"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "pageSize",
+        "total"
+      ],
+      "additionalProperties": false
+    },
+    "RoutePage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Route"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "pageSize",
+        "total"
+      ],
+      "additionalProperties": false
+    },
+    "PositionObservationPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/PositionObservation"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "pageSize",
+        "total"
+      ],
+      "additionalProperties": false
+    },
+    "ParkingSessionPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/ParkingSession"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "pageSize",
+        "total"
+      ],
+      "additionalProperties": false
+    },
+    "ParkingEventPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/ParkingEvent"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "pageSize",
+        "total"
+      ],
+      "additionalProperties": false
+    },
+    "NotificationPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Notification"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "pageSize",
+        "total"
+      ],
+      "additionalProperties": false
+    },
+    "MatchConfigurationPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/MatchConfiguration"
+          }
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pageSize": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "items",
+        "page",
+        "pageSize",
+        "total"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "roles": [
+    {
+      "id": "driver",
+      "name": "Водитель",
+      "permissions": [
+        {
+          "operation_id": "listVehicles",
+          "scope": "own"
+        },
+        {
+          "operation_id": "listObjects",
+          "scope": "all"
+        },
+        {
+          "operation_id": "getObject",
+          "scope": "all"
+        },
+        {
+          "operation_id": "ingestPosition",
+          "scope": "own"
+        },
+        {
+          "operation_id": "getMatch",
+          "scope": "own"
+        },
+        {
+          "operation_id": "createSession",
+          "scope": "own"
+        },
+        {
+          "operation_id": "listVehicleSessions",
+          "scope": "own"
+        },
+        {
+          "operation_id": "getSession",
+          "scope": "own"
+        },
+        {
+          "operation_id": "confirmSession",
+          "scope": "own"
+        },
+        {
+          "operation_id": "getPaymentLink",
+          "scope": "own"
+        },
+        {
+          "operation_id": "listVehicleRoutes",
+          "scope": "own"
+        },
+        {
+          "operation_id": "listRoutePositions",
+          "scope": "own"
+        },
+        {
+          "operation_id": "listNotifications",
+          "scope": "own"
+        }
+      ]
+    },
+    {
+      "id": "admin",
+      "name": "Администратор",
+      "permissions": [
+        {
+          "operation_id": "listVehicles",
+          "scope": "all"
+        },
+        {
+          "operation_id": "listObjects",
+          "scope": "all"
+        },
+        {
+          "operation_id": "getObject",
+          "scope": "all"
+        },
+        {
+          "operation_id": "getMatch",
+          "scope": "all"
+        },
+        {
+          "operation_id": "listVehicleSessions",
+          "scope": "all"
+        },
+        {
+          "operation_id": "getSession",
+          "scope": "all"
+        },
+        {
+          "operation_id": "listVehicleRoutes",
+          "scope": "all"
+        },
+        {
+          "operation_id": "listRoutePositions",
+          "scope": "all"
+        },
+        {
+          "operation_id": "listNotifications",
+          "scope": "all"
+        },
+        {
+          "operation_id": "listEvents",
+          "scope": "all"
+        },
+        {
+          "operation_id": "listAllSessions",
+          "scope": "all"
+        },
+        {
+          "operation_id": "listAllRoutes",
+          "scope": "all"
+        },
+        {
+          "operation_id": "getMatchConfiguration",
+          "scope": "all"
+        },
+        {
+          "operation_id": "updateMatchConfiguration",
+          "scope": "all"
+        },
+        {
+          "operation_id": "importSource",
+          "scope": "all"
+        },
+        {
+          "operation_id": "getImport",
+          "scope": "all"
+        },
+        {
+          "operation_id": "advanceDemoClock",
+          "scope": "all"
+        }
+      ]
+    }
+  ],
+  "api": [
+    {
+      "operation_id": "listVehicles",
+      "method": "GET",
+      "path": "/api/vehicles",
+      "summary": "Свои автомобили водителя; все автомобили администратора",
+      "roles": [
+        "driver",
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-014",
+        "FR-015"
+      ],
+      "parameters": [
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "required": false,
+          "description": "page"
+        },
+        {
+          "name": "pageSize",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          },
+          "required": false,
+          "description": "pageSize"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/VehiclePage"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "listObjects",
+      "method": "GET",
+      "path": "/api/parking-objects",
+      "summary": "Объекты источника с исходной геометрией и тарифами",
+      "roles": [
+        "driver",
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-008",
+        "FR-014"
+      ],
+      "parameters": [
+        {
+          "name": "city",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "spb",
+              "moscow_partner"
+            ]
+          },
+          "required": true,
+          "description": "city"
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "required": false,
+          "description": "page"
+        },
+        {
+          "name": "pageSize",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          },
+          "required": false,
+          "description": "pageSize"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/ParkingObjectPage"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "getObject",
+      "method": "GET",
+      "path": "/api/parking-objects/{objectId}",
+      "summary": "Подробности объекта; не обещает тарифный номер или полигональные границы",
+      "roles": [
+        "driver",
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-008"
+      ],
+      "parameters": [
+        {
+          "name": "objectId",
+          "in": "path",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "objectId"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/ParkingObject"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "ingestPosition",
+      "method": "POST",
+      "path": "/api/vehicles/{vehicleId}/positions",
+      "summary": "Координаты или явная ошибка; сопоставление с устойчивостью",
+      "roles": [
+        "driver"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-004",
+        "FR-007",
+        "FR-009",
+        "FR-010"
+      ],
+      "parameters": [
+        {
+          "name": "vehicleId",
+          "in": "path",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "vehicleId"
+        }
+      ],
+      "request_body": {
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/PositionInput"
+        }
+      },
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/MatchResult"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "getMatch",
+      "method": "GET",
+      "path": "/api/vehicles/{vehicleId}/match",
+      "summary": "Текущий результат определения без изменения сессии",
+      "roles": [
+        "driver",
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-004",
+        "FR-007",
+        "FR-015"
+      ],
+      "parameters": [
+        {
+          "name": "vehicleId",
+          "in": "path",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "vehicleId"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/MatchResult"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "createSession",
+      "method": "POST",
+      "path": "/api/vehicles/{vehicleId}/sessions",
+      "summary": "Явный запуск сессии без подтверждения оплаты",
+      "roles": [
+        "driver"
+      ],
+      "requirement_ids": [
+        "FR-002",
+        "FR-011"
+      ],
+      "parameters": [
+        {
+          "name": "vehicleId",
+          "in": "path",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "vehicleId"
+        }
+      ],
+      "request_body": {
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/SessionInput"
+        }
+      },
+      "responses": [
+        {
+          "status": "201",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/ParkingSession"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "listVehicleSessions",
+      "method": "GET",
+      "path": "/api/vehicles/{vehicleId}/sessions",
+      "summary": "История и активная сессия своего автомобиля",
+      "roles": [
+        "driver",
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-002",
+        "FR-011",
+        "FR-013"
+      ],
+      "parameters": [
+        {
+          "name": "vehicleId",
+          "in": "path",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "vehicleId"
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "required": false,
+          "description": "page"
+        },
+        {
+          "name": "pageSize",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          },
+          "required": false,
+          "description": "pageSize"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/ParkingSessionPage"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "getSession",
+      "method": "GET",
+      "path": "/api/sessions/{sessionId}",
+      "summary": "Состояние и время окончания сессии своего автомобиля",
+      "roles": [
+        "driver",
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-002",
+        "FR-011",
+        "FR-015"
+      ],
+      "parameters": [
+        {
+          "name": "sessionId",
+          "in": "path",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "sessionId"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/ParkingSession"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "confirmSession",
+      "method": "POST",
+      "path": "/api/sessions/{sessionId}/confirm",
+      "summary": "Явное подтверждение времени без автоматической смены объекта или оплаты",
+      "roles": [
+        "driver"
+      ],
+      "requirement_ids": [
+        "FR-002",
+        "FR-011"
+      ],
+      "parameters": [
+        {
+          "name": "sessionId",
+          "in": "path",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "sessionId"
+        }
+      ],
+      "request_body": {
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/SessionConfirmation"
+        }
+      },
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/ParkingSession"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "getPaymentLink",
+      "method": "POST",
+      "path": "/api/sessions/{sessionId}/payment-link",
+      "summary": "Демо-адаптер выдаёт разрешённую официальную ссылку либо unavailable, без оплаты",
+      "roles": [
+        "driver"
+      ],
+      "requirement_ids": [
+        "FR-006",
+        "FR-012",
+        "FR-015"
+      ],
+      "parameters": [
+        {
+          "name": "sessionId",
+          "in": "path",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "sessionId"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/PaymentLink"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "listVehicleRoutes",
+      "method": "GET",
+      "path": "/api/vehicles/{vehicleId}/routes",
+      "summary": "Маршруты своего автомобиля",
+      "roles": [
+        "driver",
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-009",
+        "FR-013"
+      ],
+      "parameters": [
+        {
+          "name": "vehicleId",
+          "in": "path",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "vehicleId"
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "required": false,
+          "description": "page"
+        },
+        {
+          "name": "pageSize",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          },
+          "required": false,
+          "description": "pageSize"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/RoutePage"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "listRoutePositions",
+      "method": "GET",
+      "path": "/api/routes/{routeId}/positions",
+      "summary": "Точки маршрута своего автомобиля в observedAt порядке",
+      "roles": [
+        "driver",
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-009",
+        "FR-013"
+      ],
+      "parameters": [
+        {
+          "name": "routeId",
+          "in": "path",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "routeId"
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "required": false,
+          "description": "page"
+        },
+        {
+          "name": "pageSize",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          },
+          "required": false,
+          "description": "pageSize"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/PositionObservationPage"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "listNotifications",
+      "method": "GET",
+      "path": "/api/vehicles/{vehicleId}/notifications",
+      "summary": "Предупреждение за 10 минут и необходимость проверки оплаты",
+      "roles": [
+        "driver",
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-003",
+        "FR-004",
+        "FR-010",
+        "FR-015"
+      ],
+      "parameters": [
+        {
+          "name": "vehicleId",
+          "in": "path",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "vehicleId"
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "required": false,
+          "description": "page"
+        },
+        {
+          "name": "pageSize",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          },
+          "required": false,
+          "description": "pageSize"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/NotificationPage"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "listEvents",
+      "method": "GET",
+      "path": "/api/admin/events",
+      "summary": "История всех обязательных типов событий",
+      "roles": [
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-005",
+        "FR-014"
+      ],
+      "parameters": [
+        {
+          "name": "vehicleId",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": false,
+          "description": "vehicleId"
+        },
+        {
+          "name": "from",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "required": false,
+          "description": "from"
+        },
+        {
+          "name": "to",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "required": false,
+          "description": "to"
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "required": false,
+          "description": "page"
+        },
+        {
+          "name": "pageSize",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          },
+          "required": false,
+          "description": "pageSize"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/ParkingEventPage"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "listAllSessions",
+      "method": "GET",
+      "path": "/api/admin/sessions",
+      "summary": "Все сессии с фильтрацией",
+      "roles": [
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-005",
+        "FR-014"
+      ],
+      "parameters": [
+        {
+          "name": "vehicleId",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": false,
+          "description": "vehicleId"
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "required": false,
+          "description": "page"
+        },
+        {
+          "name": "pageSize",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          },
+          "required": false,
+          "description": "pageSize"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/ParkingSessionPage"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "listAllRoutes",
+      "method": "GET",
+      "path": "/api/admin/routes",
+      "summary": "Все маршруты с фильтрацией",
+      "roles": [
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-014"
+      ],
+      "parameters": [
+        {
+          "name": "vehicleId",
+          "in": "query",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": false,
+          "description": "vehicleId"
+        },
+        {
+          "name": "page",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "required": false,
+          "description": "page"
+        },
+        {
+          "name": "pageSize",
+          "in": "query",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50
+          },
+          "required": false,
+          "description": "pageSize"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/RoutePage"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "getMatchConfiguration",
+      "method": "GET",
+      "path": "/api/admin/matching",
+      "summary": "Просмотр проектных порогов",
+      "roles": [
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-004",
+        "FR-010"
+      ],
+      "parameters": [
+        {
+          "name": "city",
+          "in": "query",
+          "required": true,
+          "description": "Источник, для которого применяются пороги",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "spb",
+              "moscow_partner"
+            ],
+            "default": "spb"
+          }
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/MatchConfiguration"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "updateMatchConfiguration",
+      "method": "PUT",
+      "path": "/api/admin/matching",
+      "summary": "Изменение порогов; exitMeters больше enterMeters",
+      "roles": [
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-004",
+        "FR-010"
+      ],
+      "parameters": [
+        {
+          "name": "city",
+          "in": "query",
+          "required": true,
+          "description": "Источник, для которого применяются пороги",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "spb",
+              "moscow_partner"
+            ],
+            "default": "spb"
+          }
+        }
+      ],
+      "request_body": {
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/MatchConfigurationInput"
+        }
+      },
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/MatchConfiguration"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "importSource",
+      "method": "POST",
+      "path": "/api/admin/imports",
+      "summary": "Идемпотентный импорт и карантин невалидной геометрии без слияния объектов",
+      "roles": [
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-008",
+        "FR-014"
+      ],
+      "parameters": [],
+      "request_body": {
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/ImportInput"
+        }
+      },
+      "responses": [
+        {
+          "status": "202",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/ImportBatch"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "getImport",
+      "method": "GET",
+      "path": "/api/admin/imports/{batchId}",
+      "summary": "Отчёт импорта и проблемных строк",
+      "roles": [
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-008",
+        "FR-014"
+      ],
+      "parameters": [
+        {
+          "name": "batchId",
+          "in": "path",
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "required": true,
+          "description": "batchId"
+        }
+      ],
+      "request_body": null,
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/ImportBatch"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    },
+    {
+      "operation_id": "advanceDemoClock",
+      "method": "POST",
+      "path": "/api/admin/clock/advance",
+      "summary": "Управляемое время только в demo-окружении",
+      "roles": [
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-003",
+        "FR-011"
+      ],
+      "parameters": [],
+      "request_body": {
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/ClockAdvance"
+        }
+      },
+      "responses": [
+        {
+          "status": "200",
+          "description": "Описанный успешный результат",
+          "schema": {
+            "$ref": "#/components/schemas/ClockState"
+          }
+        },
+        {
+          "status": "400",
+          "description": "Неверный запрос",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "401",
+          "description": "Нет удостоверенной личности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "403",
+          "description": "Недостаточно прав или чужой автомобиль",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "404",
+          "description": "Объект не найден",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "409",
+          "description": "Конфликт состояния/идемпотентности",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "422",
+          "description": "Нарушение предметной валидации",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        },
+        {
+          "status": "503",
+          "description": "Техническая недоступность",
+          "schema": {
+            "$ref": "#/components/schemas/Problem"
+          }
+        }
+      ]
+    }
+  ],
+  "screens": [
+    {
+      "id": "driver-map",
+      "route": "/driver",
+      "name": "Мобильная PWA: карта, позиция, объект, сессия, предупреждение, оплата",
+      "roles": [
+        "driver"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-003",
+        "FR-004",
+        "FR-007",
+        "FR-008",
+        "FR-010",
+        "FR-011",
+        "FR-012",
+        "FR-015"
+      ],
+      "actions": [
+        {
+          "id": "listVehicles",
+          "label": "Свои автомобили водителя; все автомобили администратора",
+          "operation_id": "listVehicles"
+        },
+        {
+          "id": "ingestPosition",
+          "label": "Координаты или явная ошибка; сопоставление с устойчивостью",
+          "operation_id": "ingestPosition"
+        },
+        {
+          "id": "getMatch",
+          "label": "Текущий результат определения без изменения сессии",
+          "operation_id": "getMatch"
+        },
+        {
+          "id": "getObject",
+          "label": "Подробности объекта; не обещает тарифный номер или полигональные границы",
+          "operation_id": "getObject"
+        },
+        {
+          "id": "listNotifications",
+          "label": "Предупреждение за 10 минут и необходимость проверки оплаты",
+          "operation_id": "listNotifications"
+        },
+        {
+          "id": "listVehicleSessions",
+          "label": "История и активная сессия своего автомобиля",
+          "operation_id": "listVehicleSessions"
+        },
+        {
+          "id": "createSession",
+          "label": "Явный запуск сессии без подтверждения оплаты",
+          "operation_id": "createSession"
+        },
+        {
+          "id": "getPaymentLink",
+          "label": "Демо-адаптер выдаёт разрешённую официальную ссылку либо unavailable, без оплаты",
+          "operation_id": "getPaymentLink"
+        }
+      ],
+      "display_fields": [
+        {
+          "entity": "ParkingObject",
+          "fields": [
+            "externalZoneId",
+            "displayName",
+            "geometry",
+            "geometryGeoJson",
+            "price",
+            "priceDescription",
+            "minTime",
+            "timeStep",
+            "tariff",
+            "geometryState"
+          ]
+        },
+        {
+          "entity": "ParkingSession",
+          "fields": [
+            "status",
+            "endAt",
+            "paymentConfirmed"
+          ]
+        }
+      ],
+      "states": {
+        "loading": "Индикатор загрузки; действия изменения состояния отключены.",
+        "error": "Сообщение с кодом; техническая ошибка не означает отсутствие зоны или оплату.",
+        "empty": "Нет данных или зоны; сессия сохраняется; бесплатность не утверждается.",
+        "forbidden": "Доступ запрещён; чужие данные не показываются.",
+        "ready": "Данные показаны с временем обновления; устаревшее состояние помечено."
+      }
+    },
+    {
+      "id": "driver-session",
+      "route": "/driver/sessions/:id",
+      "name": "Состояние, подтверждение сессии и переход к оплате",
+      "roles": [
+        "driver"
+      ],
+      "requirement_ids": [
+        "FR-002",
+        "FR-006",
+        "FR-011",
+        "FR-012"
+      ],
+      "actions": [
+        {
+          "id": "getSession",
+          "label": "Состояние и время окончания сессии своего автомобиля",
+          "operation_id": "getSession"
+        },
+        {
+          "id": "confirmSession",
+          "label": "Явное подтверждение времени без автоматической смены объекта или оплаты",
+          "operation_id": "confirmSession"
+        },
+        {
+          "id": "getPaymentLink",
+          "label": "Демо-адаптер выдаёт разрешённую официальную ссылку либо unavailable, без оплаты",
+          "operation_id": "getPaymentLink"
+        }
+      ],
+      "display_fields": [
+        {
+          "entity": "ParkingSession",
+          "fields": [
+            "startedAt",
+            "endAt",
+            "status",
+            "revision",
+            "paymentConfirmed"
+          ]
+        }
+      ],
+      "states": {
+        "loading": "Индикатор загрузки; действия изменения состояния отключены.",
+        "error": "Сообщение с кодом; техническая ошибка не означает отсутствие зоны или оплату.",
+        "empty": "Нет данных или зоны; сессия сохраняется; бесплатность не утверждается.",
+        "forbidden": "Доступ запрещён; чужие данные не показываются.",
+        "ready": "Данные показаны с временем обновления; устаревшее состояние помечено."
+      }
+    },
+    {
+      "id": "driver-history",
+      "route": "/driver/history",
+      "name": "Сессии и маршруты водителя",
+      "roles": [
+        "driver"
+      ],
+      "requirement_ids": [
+        "FR-009",
+        "FR-013"
+      ],
+      "actions": [
+        {
+          "id": "listVehicleSessions",
+          "label": "История и активная сессия своего автомобиля",
+          "operation_id": "listVehicleSessions"
+        },
+        {
+          "id": "listVehicleRoutes",
+          "label": "Маршруты своего автомобиля",
+          "operation_id": "listVehicleRoutes"
+        },
+        {
+          "id": "listRoutePositions",
+          "label": "Точки маршрута своего автомобиля в observedAt порядке",
+          "operation_id": "listRoutePositions"
+        }
+      ],
+      "display_fields": [
+        {
+          "entity": "Route",
+          "fields": [
+            "startedAt",
+            "endedAt"
+          ]
+        },
+        {
+          "entity": "PositionObservation",
+          "fields": [
+            "longitude",
+            "latitude",
+            "observedAt"
+          ]
+        },
+        {
+          "entity": "ParkingSession",
+          "fields": [
+            "startedAt",
+            "endAt",
+            "status"
+          ]
+        }
+      ],
+      "states": {
+        "loading": "Индикатор загрузки; действия изменения состояния отключены.",
+        "error": "Сообщение с кодом; техническая ошибка не означает отсутствие зоны или оплату.",
+        "empty": "Нет данных или зоны; сессия сохраняется; бесплатность не утверждается.",
+        "forbidden": "Доступ запрещён; чужие данные не показываются.",
+        "ready": "Данные показаны с временем обновления; устаревшее состояние помечено."
+      }
+    },
+    {
+      "id": "admin-history",
+      "route": "/admin",
+      "name": "Автомобили, объекты, сессии, маршруты, события и история",
+      "roles": [
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-005",
+        "FR-014"
+      ],
+      "actions": [
+        {
+          "id": "listVehicles",
+          "label": "Свои автомобили водителя; все автомобили администратора",
+          "operation_id": "listVehicles"
+        },
+        {
+          "id": "listObjects",
+          "label": "Объекты источника с исходной геометрией и тарифами",
+          "operation_id": "listObjects"
+        },
+        {
+          "id": "listAllSessions",
+          "label": "Все сессии с фильтрацией",
+          "operation_id": "listAllSessions"
+        },
+        {
+          "id": "listAllRoutes",
+          "label": "Все маршруты с фильтрацией",
+          "operation_id": "listAllRoutes"
+        },
+        {
+          "id": "listRoutePositions",
+          "label": "Точки маршрута своего автомобиля в observedAt порядке",
+          "operation_id": "listRoutePositions"
+        },
+        {
+          "id": "listEvents",
+          "label": "История всех обязательных типов событий",
+          "operation_id": "listEvents"
+        }
+      ],
+      "display_fields": [
+        {
+          "entity": "Vehicle",
+          "fields": [
+            "registration",
+            "driverId"
+          ]
+        },
+        {
+          "entity": "ParkingObject",
+          "fields": [
+            "externalZoneId",
+            "geometryState"
+          ]
+        },
+        {
+          "entity": "ParkingEvent",
+          "fields": [
+            "type",
+            "occurredAt",
+            "vehicleId",
+            "objectId",
+            "previousObjectId",
+            "sessionId"
+          ]
+        },
+        {
+          "entity": "ParkingSession",
+          "fields": [
+            "status",
+            "endAt"
+          ]
+        },
+        {
+          "entity": "Route",
+          "fields": [
+            "vehicleId",
+            "startedAt"
+          ]
+        }
+      ],
+      "states": {
+        "loading": "Индикатор загрузки; действия изменения состояния отключены.",
+        "error": "Сообщение с кодом; техническая ошибка не означает отсутствие зоны или оплату.",
+        "empty": "Нет данных или зоны; сессия сохраняется; бесплатность не утверждается.",
+        "forbidden": "Доступ запрещён; чужие данные не показываются.",
+        "ready": "Данные показаны с временем обновления; устаревшее состояние помечено."
+      }
+    },
+    {
+      "id": "admin-import",
+      "route": "/admin/import",
+      "name": "Импорт, карантин, параметры сопоставления и demo-время",
+      "roles": [
+        "admin"
+      ],
+      "requirement_ids": [
+        "FR-001",
+        "FR-003",
+        "FR-008",
+        "FR-011",
+        "FR-014"
+      ],
+      "actions": [
+        {
+          "id": "importSource",
+          "label": "Идемпотентный импорт и карантин невалидной геометрии без слияния объектов",
+          "operation_id": "importSource"
+        },
+        {
+          "id": "getImport",
+          "label": "Отчёт импорта и проблемных строк",
+          "operation_id": "getImport"
+        },
+        {
+          "id": "getMatchConfiguration",
+          "label": "Просмотр проектных порогов",
+          "operation_id": "getMatchConfiguration"
+        },
+        {
+          "id": "updateMatchConfiguration",
+          "label": "Изменение порогов; exitMeters больше enterMeters",
+          "operation_id": "updateMatchConfiguration"
+        },
+        {
+          "id": "advanceDemoClock",
+          "label": "Управляемое время только в demo-окружении",
+          "operation_id": "advanceDemoClock"
+        }
+      ],
+      "display_fields": [
+        {
+          "entity": "ImportBatch",
+          "fields": [
+            "status",
+            "accepted",
+            "quarantined",
+            "issues"
+          ]
+        },
+        {
+          "entity": "MatchConfiguration",
+          "fields": [
+            "enterMeters",
+            "exitMeters",
+            "confirmSamples",
+            "holdSeconds",
+            "maxAccuracyMeters",
+            "tieMeters",
+            "maxObservationAgeSeconds",
+            "futureToleranceSeconds"
+          ]
+        }
+      ],
+      "states": {
+        "loading": "Индикатор загрузки; действия изменения состояния отключены.",
+        "error": "Сообщение с кодом; техническая ошибка не означает отсутствие зоны или оплату.",
+        "empty": "Нет данных или зоны; сессия сохраняется; бесплатность не утверждается.",
+        "forbidden": "Доступ запрещён; чужие данные не показываются.",
+        "ready": "Данные показаны с временем обновления; устаревшее состояние помечено."
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "ParkingEvent",
+      "requirement_ids": [
+        "FR-003",
+        "FR-004",
+        "FR-005",
+        "FR-010",
+        "FR-011"
+      ],
+      "schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "entry",
+              "exit",
+              "object_changed",
+              "session_started",
+              "session_confirmed",
+              "warning_10_minutes",
+              "session_expired",
+              "location_error"
+            ]
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "vehicleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "observationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "objectId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "previousObjectId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "dedupKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "details": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 100
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "occurredAt",
+          "vehicleId",
+          "dedupKey",
+          "details"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "enum": [
+                    "session_started",
+                    "session_confirmed",
+                    "warning_10_minutes",
+                    "session_expired"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "sessionId"
+              ],
+              "properties": {
+                "sessionId": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "enum": [
+                    "entry",
+                    "object_changed"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "objectId"
+              ],
+              "properties": {
+                "objectId": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": {
+                  "enum": [
+                    "exit",
+                    "object_changed"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "previousObjectId"
+              ],
+              "properties": {
+                "previousObjectId": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "id_field": "id",
+      "time_field": "occurredAt",
+      "idempotency_key": [
+        "dedupKey"
+      ],
+      "delivery": "at_least_once",
+      "deduplication": "Уникальный dedupKey в транзакции: для позиции vehicleId/sourceObservationId/type/from/to; для предупреждения sessionId/revision/warning10; для окончания sessionId/revision/expired. Повтор команды возвращает прежний результат; уведомление уникально по eventId."
+    }
+  ],
+  "test_scenarios": [
+    {
+      "id": "TC-001",
+      "requirement_ids": [
+        "FR-001"
+      ],
+      "operation_ids": [
+        "listObjects",
+        "getObject",
+        "ingestPosition",
+        "getMatch",
+        "getMatchConfiguration",
+        "updateMatchConfiguration",
+        "importSource"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "Система определяет парковочную зону по координатам и показывает ее номер.",
+      "then": "При координатах в допустимом расстоянии от линии или внутри полигона возвращаются объект источника и отображаемый идентификатор; никакой тарифный номер не выдумывается. NO_MATCH, NO_COORDINATES и TECHNICAL_ERROR различаются; NO_MATCH не означает бесплатность; текущая сессия сохраняется.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-002",
+      "requirement_ids": [
+        "FR-002"
+      ],
+      "operation_ids": [
+        "createSession",
+        "listVehicleSessions",
+        "getSession",
+        "confirmSession"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "Водитель подтверждает парковочную сессию и время ее окончания.",
+      "then": "Только явное действие водителя создаёт/подтверждает сессию с автомобилем, объектом и временем окончания. После перезагрузки интерфейса сессия читается из БД; подтверждение сессии не устанавливает факт оплаты.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-003",
+      "requirement_ids": [
+        "FR-003"
+      ],
+      "operation_ids": [
+        "listNotifications",
+        "advanceDemoClock"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "За 10 минут до окончания система предупреждает водителя.",
+      "then": "При достижении endAt минус 10 минут создаётся одно предупреждение и одно событие с идентификатором сессии. Повторная обработка того же момента не создаёт дубликат.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-004",
+      "requirement_ids": [
+        "FR-004"
+      ],
+      "operation_ids": [
+        "ingestPosition",
+        "getMatch",
+        "listNotifications",
+        "getMatchConfiguration",
+        "updateMatchConfiguration"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "При переходе в другую зону система предлагает проверить необходимость новой оплаты.",
+      "then": "Устойчивая смена объекта формирует событие и предложение проверить необходимость оплаты. Сессия и её оплата не изменяются автоматически при смене объекта.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-005",
+      "requirement_ids": [
+        "FR-005"
+      ],
+      "operation_ids": [
+        "listEvents",
+        "listAllSessions"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "Администратор просматривает историю сессий и событий.",
+      "then": "Администратор получает историю въезда, выезда, смены зоны, начала/подтверждения, предупреждения, окончания и ошибок позиции. У события есть id, type, occurredAt, vehicleId и применимые ссылки previousObjectId/objectId/sessionId.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-006",
+      "requirement_ids": [
+        "FR-006"
+      ],
+      "operation_ids": [
+        "getPaymentLink"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "Реальную оплату выполнять не нужно; внешний сервис заменяется mock-адаптером.",
+      "then": "Демонстрационный адаптер не обращается к реальному платёжному шлюзу и явно обозначает демонстрационный режим. Результат адаптера и переход по ссылке не устанавливают paymentConfirmed=true.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-007",
+      "requirement_ids": [
+        "FR-007"
+      ],
+      "operation_ids": [
+        "ingestPosition",
+        "getMatch"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "Определение местоположения автомобиля.",
+      "then": "Получены координаты с timestamp и accuracyMeters; водитель видит текущую позицию. Отсутствие разрешения/координат отличается от технической ошибки; чужой автомобиль недоступен водителю.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-008",
+      "requirement_ids": [
+        "FR-008"
+      ],
+      "operation_ids": [
+        "listObjects",
+        "getObject",
+        "importSource",
+        "getImport"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "Отображение номера, границ и доступных параметров зоны.",
+      "then": "На карте показана исходная геометрия объекта, включая все компоненты MULTILINESTRING и GEOMETRYCOLLECTION. Для линейного источника подпись сообщает, что полигональных границ нет; вычисленный коридор отделён от исходной линии. Параметры показывают исходный тариф без неподтверждённых пересчётов.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-009",
+      "requirement_ids": [
+        "FR-009"
+      ],
+      "operation_ids": [
+        "ingestPosition",
+        "listVehicleRoutes",
+        "listRoutePositions"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "Отслеживание перемещения и отображение маршрута.",
+      "then": "Последовательность координат автомобиля сохраняется с временем; маршрут восстанавливается после перезагрузки. Устаревшие и повторные наблюдения не вызывают переключения и дублирования событий.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-010",
+      "requirement_ids": [
+        "FR-010"
+      ],
+      "operation_ids": [
+        "ingestPosition",
+        "listNotifications",
+        "getMatchConfiguration",
+        "updateMatchConfiguration"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "Определение выезда из текущего объекта парковки.",
+      "then": "При устойчивом отсутствии совпадения регистрируется выезд и предложение проверить оплату. Одиночная неточная точка не вызывает выезд; существующая сессия остаётся до её срока/явного действия.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-011",
+      "requirement_ids": [
+        "FR-011"
+      ],
+      "operation_ids": [
+        "createSession",
+        "listVehicleSessions",
+        "getSession",
+        "confirmSession",
+        "advanceDemoClock"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "Контроль состояния и времени окончания парковочной сессии.",
+      "then": "Текущее состояние и endAt видны водителю; при достижении endAt сессия получает статус expired и событие окончания. Управляемый демонстрационный Clock воспроизводит предупреждение и окончание без ожидания реальных минут.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-012",
+      "requirement_ids": [
+        "FR-012"
+      ],
+      "operation_ids": [
+        "getPaymentLink"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "Переход к официальному сервису оплаты.",
+      "then": "Действие водителя открывает только заранее настроенный разрешённый официальный URL через платёжный адаптер. Если URL не настроен, виден явный статус unavailable; переход и смена зоны не подтверждают оплату.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-013",
+      "requirement_ids": [
+        "FR-013"
+      ],
+      "operation_ids": [
+        "listVehicleSessions",
+        "listVehicleRoutes",
+        "listRoutePositions"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "История парковочных сессий водителя.",
+      "then": "Водитель видит свои прошлые и текущую сессию и связанные маршруты; данные чужих автомобилей не выдаются.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-014",
+      "requirement_ids": [
+        "FR-014"
+      ],
+      "operation_ids": [
+        "listVehicles",
+        "listObjects",
+        "listEvents",
+        "listAllSessions",
+        "listAllRoutes",
+        "importSource",
+        "getImport"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "Административный просмотр автомобилей, зон, сессий, маршрутов, событий и истории.",
+      "then": "Администратор открывает списки автомобилей, объектов источника, сессий, маршрутов, событий с фильтром и пагинацией. Водитель не может получить административные списки.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-015",
+      "requirement_ids": [
+        "FR-015"
+      ],
+      "operation_ids": [
+        "listVehicles",
+        "getMatch",
+        "getSession",
+        "getPaymentLink",
+        "listNotifications"
+      ],
+      "given": "Подготовлены автомобиль своего водителя, источник spb и управляемый Clock; роль и права заданы.",
+      "when": "Мобильный интерфейс водителя с картой, текущей зоной, статусом сессии, временем, уведомлениями и переходом к оплате.",
+      "then": "Мобильный экран PWA содержит карту, текущий объект/неопределённое состояние, сессию, endAt, предупреждение и оплату. Предусмотрены loading, error, empty, forbidden и ready; отсутствие сети не изображается как успешная оплата/бесплатная парковка.",
+      "type": "positive"
+    },
+    {
+      "id": "TC-016",
+      "requirement_ids": [
+        "FR-001",
+        "FR-004",
+        "FR-010"
+      ],
+      "operation_ids": [
+        "ingestPosition",
+        "getMatch"
+      ],
+      "given": "Точка колеблется около двух линий; текущий объект в пределах exitMeters.",
+      "when": "Подать неоднозначные/неточные/устаревшие точки.",
+      "then": "Нет частых переключений; ambiguous/stale различаются; активная сессия не изменена.",
+      "type": "negative"
+    },
+    {
+      "id": "TC-017",
+      "requirement_ids": [
+        "FR-001",
+        "FR-007"
+      ],
+      "operation_ids": [
+        "ingestPosition",
+        "getMatch"
+      ],
+      "given": "Есть активная сессия.",
+      "when": "Подать по очереди NO_MATCH, NO_COORDINATES и TECHNICAL_ERROR.",
+      "then": "Три различимых состояния; сессия сохранена; бесплатность парковки не утверждается.",
+      "type": "negative"
+    },
+    {
+      "id": "TC-018",
+      "requirement_ids": [
+        "FR-002",
+        "FR-004",
+        "FR-006"
+      ],
+      "operation_ids": [
+        "ingestPosition",
+        "createSession",
+        "getPaymentLink"
+      ],
+      "given": "Есть активная сессия на объекте A.",
+      "when": "Переместить автомобиль на B и открыть ссылку.",
+      "then": "Сессия A не завершена и новая не создана автоматически; paymentConfirmed остаётся false.",
+      "type": "negative"
+    },
+    {
+      "id": "TC-019",
+      "requirement_ids": [
+        "FR-003",
+        "FR-011"
+      ],
+      "operation_ids": [
+        "advanceDemoClock",
+        "listNotifications",
+        "listEvents"
+      ],
+      "given": "Сессия с endAt; очередь событий повторно доставляет сообщения.",
+      "when": "Clock проходит endAt-10min и endAt; повторить обработку.",
+      "then": "Ровно одно предупреждение и событие окончания на revision; сессия expired по времени.",
+      "type": "negative"
+    },
+    {
+      "id": "TC-020",
+      "requirement_ids": [
+        "FR-005",
+        "FR-013",
+        "FR-014"
+      ],
+      "operation_ids": [
+        "listVehicleSessions",
+        "listRoutePositions",
+        "listEvents"
+      ],
+      "given": "Водитель A и автомобиль B другого водителя.",
+      "when": "Обратиться к данным B и административной истории.",
+      "then": "403, без утечки чужих данных; без токена 401.",
+      "type": "negative"
+    },
+    {
+      "id": "TC-021",
+      "requirement_ids": [
+        "FR-008",
+        "FR-014"
+      ],
+      "operation_ids": [
+        "importSource",
+        "getImport",
+        "listObjects"
+      ],
+      "given": "Источник с LINESTRING/MULTILINESTRING/GEOMETRYCOLLECTION/POLYGON и вырожденным сегментом.",
+      "when": "Импортировать затем повторить тот же city+hash.",
+      "then": "Все типы сохранены; невалидный объект в карантине; повтор не дублирует объекты; совпадающие имя/цена не объединяют записи.",
+      "type": "negative"
+    },
+    {
+      "id": "TC-022",
+      "requirement_ids": [
+        "FR-008"
+      ],
+      "operation_ids": [
+        "getObject"
+      ],
+      "given": "В исходных тарифах duration=null и неизвестные единицы.",
+      "when": "Открыть карточку.",
+      "then": "Все исходные поля совпадают с JSON; расчёт цены и неподтверждённое преобразование единиц отсутствуют.",
+      "type": "negative"
+    },
+    {
+      "id": "TC-023",
+      "requirement_ids": [
+        "FR-012",
+        "FR-015"
+      ],
+      "operation_ids": [
+        "getPaymentLink"
+      ],
+      "given": "Официальный URL не настроен или не входит в allowlist.",
+      "when": "Запросить ссылку.",
+      "then": "unavailable/ошибка; произвольный URL не открывается; оплаты нет.",
+      "type": "negative"
+    }
+  ],
+  "assumptions": [
+    {
+      "id": "A-001",
+      "text": "Координаты водителя поступают от мобильного устройства или приложения.",
+      "reason": "Исходный текст не указывает источник координат."
+    },
+    {
+      "id": "A-003",
+      "text": "Время окончания сессии задается водителем при подтверждении.",
+      "reason": "Текст говорит, что водитель подтверждает сессию и время ее окончания."
+    },
+    {
+      "id": "A-004",
+      "text": "Предупреждение и предложение отображаются в интерфейсе приложения водителя.",
+      "reason": "Канал уведомления не указан."
+    },
+    {
+      "id": "A-006",
+      "text": "История сессий и событий хранится в системе и доступна администратору.",
+      "reason": "Администратор просматривает историю."
+    },
+    {
+      "id": "A-007",
+      "text": "Исходные WKT интерпретируются как EPSG:4326 с порядком longitude,latitude.",
+      "reason": "Диапазоны согласуются с Санкт-Петербургом и Москвой; SRID в WKT отсутствует."
+    },
+    {
+      "id": "A-008",
+      "text": "Начальные проектные пороги: вход 25 м, выход 40 м, 3 последовательных точки на протяжении не менее 15 с, точность не хуже 50 м; все параметры конфигурируемые.",
+      "reason": "Численные значения не заданы пользователем; требуют полевой проверки."
+    },
+    {
+      "id": "A-009",
+      "text": "При нескольких кандидатах сохраняется текущий объект в пределах выхода; иначе выбирается минимальная дистанция; при разнице менее 5 м результат ambiguous и переключение откладывается.",
+      "reason": "Защита от неоднозначности и дрожания; порог 5 м — проектное допущение."
+    },
+    {
+      "id": "A-010",
+      "text": "Для импортированных точечных компонентов применяется тот же конфигурируемый допуск, полигон сопоставляется по покрытию, коллекция — по объединению подходящих компонентов без переименования объекта.",
+      "reason": "В коллекциях источника присутствуют POINT; требуется явное правило до реализации."
+    },
+    {
+      "id": "A-011",
+      "text": "В demo маршрут создаётся сервером при первой валидной точке автомобиля за день UTC; отсутствие координат не требует выдуманного routeId.",
+      "reason": "Границы поездки в исходных данных не заданы. Это проектный вариант, подлежащий согласованию."
+    },
+    {
+      "id": "A-012",
+      "text": "Наблюдение stale, если observedAt не новее последнего принятого либо старше Clock.now на 30 с; timestamp более чем на 5 с в будущем отклоняется. Пороги конфигурируемые.",
+      "reason": "Пользователь требует устойчивость к погрешностям; временные численные пороги не заданы и являются проектными допущениями."
+    }
+  ],
+  "open_questions": [
+    "Подтвердить SRID и порядок координат у источника; диапазоны подтверждают лишь правдоподобие longitude,latitude.",
+    "externalZoneId — объект; где источник авторитетного номера и полигональных границ тарифной зоны?",
+    "Подтвердить единицы price/minTime/timeStep и period.from/to/duration/price, правила календаря/праздников и выбора периодов.",
+    "Подтвердить официальный URL/адаптер оплаты и доверенный механизм идентификации пользователей.",
+    "Уточнить серверную версию PostGIS: postgis-jdbc2.5.0 — Java-библиотека.",
+    "Согласовать сроки хранения и разрешения на геолокацию, в том числе работу PWA в фоне."
+  ],
+  "validation_and_errors": [
+    "PostGIS хранит geometry(Geometry,4326); расстояния линий/точек рассчитываются в метрах через geography по компонентам; полигоны через покрытие. Геометрия не исправляется молча.",
+    "Вход 25м, выход 40м, >=3 точек за >=15с, accuracy<=50м; текущий объект удерживается до порога выхода; новый подтверждается при пороге входа; разница кандидатов<5м даёт ambiguous. Это конфигурируемые допущения, не подтверждённые нормативы.",
+    "Гистерезис хранится на автомобиль; при неточных/устаревших/отсутствующих координатах не фиксировать выезд. NO_MATCH после устойчивых валидных точек фиксирует выезд; сессия сохраняется.",
+    "Для available обязательны longitude/latitude/accuracyMeters; no_coordinates и technical_error не сохраняют выдуманные координаты. Храним исходное наблюдение для аудита.",
+    "Время UTC; endAt > Clock.now; одна active сессия на автомобиль; expectedRevision защищает конкуренцию. Если сессия создана меньше чем за10мин до конца, предупреждение формируется сразу однократно (проектное допущение).",
+    "Импорт ограничен 20МБ и20000 объектов за пакет (проектное ограничение), ключ city+externalZoneId; совпадение цены/названия не объединяет записи; city+sha256 предотвращает повтор импорта.",
+    "События: въезд, выезд, смена объекта, начало/подтверждение,10мин,окончание,ошибки позиции. Ссылки objectId/previousObjectId/sessionId заполняются по типу и известному состоянию.",
+    "Переключение/потеря совпадения никогда не создаёт платёж, не завершает и не создаёт сессию. Истечение endAt — отдельный переход с событием.",
+    "Ошибки API:400 синтаксис,401 нет идентификации,403 права/чужие данные/demo-Clock запрещён,404 неизвестный ID,409 конфликт/повтор с другим телом,422 предметная валидация,503 техническая ошибка.",
+    "listObjects возвращает исходный WKT и производный GeoJSON. corridor в MatchResult всегда расчётный и не авторитетная граница. Карантин виден администратору, не используется для определения платной области.",
+    "routeId в PositionInput необязателен; сервер назначает маршрут валидной точке. Наблюдение no_coordinates/technical_error сохраняется без фиктивных координат и при необходимости без маршрута.",
+    "Временная устойчивость: observedAt<=lastAcceptedAt или Clock.now-observedAt>maxObservationAgeSeconds => stale; observedAt-Clock.now>futureToleranceSeconds =>422. По stale не фиксировать выезд и не менять объект или сессию.",
+    "Источник matching определяется Vehicle.sourceCity (по умолчанию spb); используется соответствующая MatchConfiguration.city. Moscow_partner не смешивается с spb. Сессия может ссылаться только на объект того же источника, что и автомобиль."
+  ],
+  "security_recommendations": [
+    "Проверять владельца автомобиля/сессии/маршрута на сервере при каждой операции; роль из доверенного контекста.",
+    "Идентификаторы/время/расстояния валидируются; maxPageSize100, параметризованные запросы.",
+    "Платёжный адаптер только allowlist; неизвестный URL unavailable. Нет секретов в событиях и API.",
+    "Управляемый Clock и демонстрационные координаты только demo-режим, закрыты в production.",
+    "Геоданные — чувствительная история перемещений: доступ по роли, согласовать срок хранения и удаление."
+  ],
+  "limitations": [
+    "Все сценарии — описания приёмки; приложение, SQL, сборка, UI-тесты, CVE-сканирование не выполнялись.",
+    "Линейные данные не задают границ тарифных зон; нельзя рисовать коридор как официальную зону или трактовать отсутствие объекта как бесплатность.",
+    "EPSG4326/координатный порядок — допущение; преобразование иных CRS только после подтверждения.",
+    "Пороговые числа, диапазоны валидации, примерные лимиты пакетов и правила неоднозначности — проектные допущения для последующей проверки.",
+    "Исходный PDF недоступен; полнота проверена относительно перечня пользователя.",
+    "Импорт geometry513420 помещается в карантин; точка в GEOMETRYCOLLECTION не превращается в отдельную тарифную зону.",
+    "Единицы и расчёт цены не подтверждены. price и tariff сохраняются как исходные данные.",
+    "paymentConfirmed всегда false: подтверждение сессии и ссылка не являются подтверждением оплаты.",
+    "Версия Angular Material, провайдер карты/тайлов и модель идентификации фиксируются до реализации; карта не обязана работать без сети."
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "application_verified": true,
+  "checks_passed": 52,
+  "checks_total": 52,
+  "api_url": "http://127.0.0.1:43221",
+  "compose_project": "rwbgenda9ae29eb0d5",
+  "new_model_calls": 2,
+  "model_repairs": 0,
+  "input_tokens": 3957,
+  "output_tokens": 6066,
+  "model_seconds": 98.255,
+  "active_execution_seconds": 116.668,
+  "engineering_fix": "Escaped SQL identifiers in technical Runtime.cs UPDATE string after CS1002; model bodies unchanged",
+  "supported_operations": [
+    "listVehicles",
+    "listObjects",
+    "createSession",
+    "listVehicleSessions",
+    "confirmSession",
+    "listAllSessions"
+  ],
+  "limitations": [
+    "Only six operations; all other routes absent",
+    "Demo identity, no corporate authentication",
+    "Small valid spb sample, not a full import",
+    "No matching, coordinates, notifications or payments",
+    "Derived optional geometryGeoJson stored as nullable JSONB; spatial GiST index deferred with PostGIS",
+    "No scheduled expiry worker; active state changes outside this slice are not implemented",
+    "PostgreSQL17.9 Debian13 instead of specified Debian12 package"
+  ],
+  "local_tests": "114 full-suite tests passed, including 34 parking/server-generator tests",
+  "final_template_matches_running_project": true
+}

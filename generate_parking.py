@@ -26,3 +26,6 @@ def main():
  print(json.dumps({'status':r['status'],'application_verified':r['application_verified'],'metrics':{k:v for k,v in r['metrics'].items() if k!='calls'},'report':str(a.output/'generation-report.json')},ensure_ascii=False))
  return 0 if r['status']=='verified_running' or (not a.verify and r['status']=='generated') else 1
 if __name__=='__main__':raise SystemExit(main())
+
+
+# python generate_parking.py --output runs/video-new --verify --sudo-docker

@@ -1,0 +1,1 @@
+{"status": "failed", "application_verified": false, "metrics": {"model_calls": 2, "repair_attempts": 0, "input_tokens": 3957, "output_tokens": 6066, "seconds": 101.73}, "report": "runs/parking-sessions/generation-report.json"}
