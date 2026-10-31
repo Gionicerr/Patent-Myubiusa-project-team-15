@@ -1,0 +1,10 @@
+# Preserve original audited bytes; no end-of-line conversion for these nine artifacts.
+docs/stage2/analysis.json -text
+docs/stage2/design.json -text
+docs/stage2/answers.json -text
+docs/stage2/quality-report.json -text
+docs/stage2/openapi.json -text
+docs/stage2/data-model.json -text
+docs/stage2/screens.json -text
+docs/stage2/events.json -text
+docs/stage2/permissions.json -text
